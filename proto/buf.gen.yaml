@@ -1,0 +1,38 @@
+version: v2
+clean: true
+
+inputs:
+  - directory: .
+
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: ../gen/go
+    opt:
+      - paths=source_relative
+
+  - remote: buf.build/connectrpc/go
+    out: ../gen/go
+    opt:
+      - paths=source_relative
+
+  - local: protoc-gen-go-enums
+    out: ../gen/go
+    opt:
+      - paths=source_relative
+
+  - local: protoc-gen-go-string-consts
+    out: ../gen/go
+    opt:
+      - paths=source_relative
+
+  - remote: buf.build/protocolbuffers/python
+    out: ../gen/python
+
+managed:
+  enabled: true
+  disable:
+    - path: vendor
+      file_option: go_package_prefix
+  override:
+    - file_option: go_package_prefix
+      value: github.com/qujing226/mini-llm-serve/gen/go

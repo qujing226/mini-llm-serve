@@ -1,0 +1,26 @@
+[tools]
+go = "1.26"
+uv = "0.11.0"
+"go:github.com/daotl/protoc-gen-go-enums" = "v1.7.0"
+"go:github.com/daotl/protoc-gen-go-string-consts" = "v1.0.0"
+
+[hooks]
+postinstall = '''
+set -eu
+
+mkdir -p proto/vendor
+
+copy_include() {
+  module="$1"
+  version="$2"
+  src="$(go env GOMODCACHE)/${module}@${version}/include/"
+  if [ ! -d "$src" ]; then
+    echo "include dir not found: $src" >&2
+    exit 1
+  fi
+  rsync -a "$src" proto/vendor/
+}
+
+copy_include "github.com/daotl/protoc-gen-go-string-consts" "v1.0.0"
+copy_include "github.com/daotl/protoc-gen-go-enums" "v1.7.0"
+'''

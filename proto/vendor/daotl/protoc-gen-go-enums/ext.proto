@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package daotl.gen_go_enums;
+option go_package = "github.com/daotl/protoc-gen-go-enums/pbgen";
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.EnumOptions {
+  // Enable generation of renamed Go constants from enums. (Default: true)
+  bool enabled = 91720;
+  // Strip prefix. (Default: true)
+  string strip_name_prefix = 91721;
+  // Turn const name into pascal case
+  // (apply before  `name_prefix` and `name_suffix`).
+  bool name_pascal_case = 91722;
+  // Turn const name into CAPS_CASE
+  // (apply before `name_prefix` and `name_suffix`).
+  // Can't be used together with name_pascal_case.
+  bool name_caps_case = 91723;
+  // Add string prefix to generated Go string constant names.
+  string name_prefix = 91724;
+  // Add string suffix to generated Go string constant names.
+  string name_suffix = 91725;
+  // Generate uint32 constants instead of default int32 constants.
+  bool uint32 = 91726;
+}
