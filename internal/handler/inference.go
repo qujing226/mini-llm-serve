@@ -4,21 +4,33 @@ import (
 	"context"
 
 	"github.com/qujing226/mini-llm-serve/internal/model"
+	"github.com/qujing226/mini-llm-serve/internal/scheduler"
 )
 
-type Engine interface {
+type InferenceHandler interface {
 	Generate(ctx context.Context, in *model.GenerateInput) (*model.GenerateOutput, error)
 }
 
-type EngineHandle struct {
+type inferenceHandler struct {
+	Scheduler scheduler.Scheduler
 }
 
-func NewEngineHandle() *EngineHandle {
-	e := &EngineHandle{}
+func NewInferenceHandle(s scheduler.Scheduler) InferenceHandler {
+	e := &inferenceHandler{
+		Scheduler: s,
+	}
 	return e
 }
 
-func (e *EngineHandle) Generate(ctx context.Context, in *model.GenerateInput) (*model.GenerateOutput, error) {
-	//TODO implement me
-	panic("implement me")
+func (e *inferenceHandler) Generate(ctx context.Context, in *model.GenerateInput) (*model.GenerateOutput, error) {
+	return &model.GenerateOutput{
+		RequestId:    "",
+		Output:       "",
+		FinishReason: 0,
+		Usage:        model.Usage{},
+		Timing:       model.Timing{},
+		BatchID:      "",
+		BatchSize:    0,
+		WorkerId:     "",
+	}, nil
 }

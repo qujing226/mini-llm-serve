@@ -47,7 +47,7 @@ const (
 
 // InferenceServiceClient is a client for the mini_llm_serve.v1.InferenceService service.
 type InferenceServiceClient interface {
-	Generate(context.Context, *connect.Request[v1.GenerateRequest]) (*connect.Response[v1.GenerateResponse], error)
+	Generate(context.Context, *v1.GenerateRequest) (*v1.GenerateResponse, error)
 }
 
 // NewInferenceServiceClient constructs a client for the mini_llm_serve.v1.InferenceService service.
@@ -76,13 +76,17 @@ type inferenceServiceClient struct {
 }
 
 // Generate calls mini_llm_serve.v1.InferenceService.Generate.
-func (c *inferenceServiceClient) Generate(ctx context.Context, req *connect.Request[v1.GenerateRequest]) (*connect.Response[v1.GenerateResponse], error) {
-	return c.generate.CallUnary(ctx, req)
+func (c *inferenceServiceClient) Generate(ctx context.Context, req *v1.GenerateRequest) (*v1.GenerateResponse, error) {
+	response, err := c.generate.CallUnary(ctx, connect.NewRequest(req))
+	if response != nil {
+		return response.Msg, err
+	}
+	return nil, err
 }
 
 // InferenceServiceHandler is an implementation of the mini_llm_serve.v1.InferenceService service.
 type InferenceServiceHandler interface {
-	Generate(context.Context, *connect.Request[v1.GenerateRequest]) (*connect.Response[v1.GenerateResponse], error)
+	Generate(context.Context, *v1.GenerateRequest) (*v1.GenerateResponse, error)
 }
 
 // NewInferenceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -92,7 +96,7 @@ type InferenceServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewInferenceServiceHandler(svc InferenceServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	inferenceServiceMethods := v1.File_mini_llm_serve_v1_service_proto.Services().ByName("InferenceService").Methods()
-	inferenceServiceGenerateHandler := connect.NewUnaryHandler(
+	inferenceServiceGenerateHandler := connect.NewUnaryHandlerSimple(
 		InferenceServiceGenerateProcedure,
 		svc.Generate,
 		connect.WithSchema(inferenceServiceMethods.ByName("Generate")),
@@ -111,14 +115,14 @@ func NewInferenceServiceHandler(svc InferenceServiceHandler, opts ...connect.Han
 // UnimplementedInferenceServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedInferenceServiceHandler struct{}
 
-func (UnimplementedInferenceServiceHandler) Generate(context.Context, *connect.Request[v1.GenerateRequest]) (*connect.Response[v1.GenerateResponse], error) {
+func (UnimplementedInferenceServiceHandler) Generate(context.Context, *v1.GenerateRequest) (*v1.GenerateResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mini_llm_serve.v1.InferenceService.Generate is not implemented"))
 }
 
 // AdminServiceClient is a client for the mini_llm_serve.v1.AdminService service.
 type AdminServiceClient interface {
-	Health(context.Context, *connect.Request[v1.HealthRequest]) (*connect.Response[v1.HealthResponse], error)
-	GetRuntimeStats(context.Context, *connect.Request[v1.GetRuntimeStatsRequest]) (*connect.Response[v1.GetRuntimeStatsResponse], error)
+	Health(context.Context, *v1.HealthRequest) (*v1.HealthResponse, error)
+	GetRuntimeStats(context.Context, *v1.GetRuntimeStatsRequest) (*v1.GetRuntimeStatsResponse, error)
 }
 
 // NewAdminServiceClient constructs a client for the mini_llm_serve.v1.AdminService service. By
@@ -154,19 +158,27 @@ type adminServiceClient struct {
 }
 
 // Health calls mini_llm_serve.v1.AdminService.Health.
-func (c *adminServiceClient) Health(ctx context.Context, req *connect.Request[v1.HealthRequest]) (*connect.Response[v1.HealthResponse], error) {
-	return c.health.CallUnary(ctx, req)
+func (c *adminServiceClient) Health(ctx context.Context, req *v1.HealthRequest) (*v1.HealthResponse, error) {
+	response, err := c.health.CallUnary(ctx, connect.NewRequest(req))
+	if response != nil {
+		return response.Msg, err
+	}
+	return nil, err
 }
 
 // GetRuntimeStats calls mini_llm_serve.v1.AdminService.GetRuntimeStats.
-func (c *adminServiceClient) GetRuntimeStats(ctx context.Context, req *connect.Request[v1.GetRuntimeStatsRequest]) (*connect.Response[v1.GetRuntimeStatsResponse], error) {
-	return c.getRuntimeStats.CallUnary(ctx, req)
+func (c *adminServiceClient) GetRuntimeStats(ctx context.Context, req *v1.GetRuntimeStatsRequest) (*v1.GetRuntimeStatsResponse, error) {
+	response, err := c.getRuntimeStats.CallUnary(ctx, connect.NewRequest(req))
+	if response != nil {
+		return response.Msg, err
+	}
+	return nil, err
 }
 
 // AdminServiceHandler is an implementation of the mini_llm_serve.v1.AdminService service.
 type AdminServiceHandler interface {
-	Health(context.Context, *connect.Request[v1.HealthRequest]) (*connect.Response[v1.HealthResponse], error)
-	GetRuntimeStats(context.Context, *connect.Request[v1.GetRuntimeStatsRequest]) (*connect.Response[v1.GetRuntimeStatsResponse], error)
+	Health(context.Context, *v1.HealthRequest) (*v1.HealthResponse, error)
+	GetRuntimeStats(context.Context, *v1.GetRuntimeStatsRequest) (*v1.GetRuntimeStatsResponse, error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -176,13 +188,13 @@ type AdminServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	adminServiceMethods := v1.File_mini_llm_serve_v1_service_proto.Services().ByName("AdminService").Methods()
-	adminServiceHealthHandler := connect.NewUnaryHandler(
+	adminServiceHealthHandler := connect.NewUnaryHandlerSimple(
 		AdminServiceHealthProcedure,
 		svc.Health,
 		connect.WithSchema(adminServiceMethods.ByName("Health")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminServiceGetRuntimeStatsHandler := connect.NewUnaryHandler(
+	adminServiceGetRuntimeStatsHandler := connect.NewUnaryHandlerSimple(
 		AdminServiceGetRuntimeStatsProcedure,
 		svc.GetRuntimeStats,
 		connect.WithSchema(adminServiceMethods.ByName("GetRuntimeStats")),
@@ -203,10 +215,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 // UnimplementedAdminServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAdminServiceHandler struct{}
 
-func (UnimplementedAdminServiceHandler) Health(context.Context, *connect.Request[v1.HealthRequest]) (*connect.Response[v1.HealthResponse], error) {
+func (UnimplementedAdminServiceHandler) Health(context.Context, *v1.HealthRequest) (*v1.HealthResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mini_llm_serve.v1.AdminService.Health is not implemented"))
 }
 
-func (UnimplementedAdminServiceHandler) GetRuntimeStats(context.Context, *connect.Request[v1.GetRuntimeStatsRequest]) (*connect.Response[v1.GetRuntimeStatsResponse], error) {
+func (UnimplementedAdminServiceHandler) GetRuntimeStats(context.Context, *v1.GetRuntimeStatsRequest) (*v1.GetRuntimeStatsResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mini_llm_serve.v1.AdminService.GetRuntimeStats is not implemented"))
 }

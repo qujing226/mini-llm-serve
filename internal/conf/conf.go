@@ -16,7 +16,8 @@ type Conf struct {
 }
 
 type ServerConf struct {
-	Address string `koanf:"address"`
+	Address        string `koanf:"address"`
+	QueueRoundTime int64  `koanf:"queueRoundTime"`
 }
 
 func NewConfFromPath(path string) (*Conf, error) {
@@ -41,5 +42,6 @@ func NewConfFromPath(path string) (*Conf, error) {
 	if err := k.Unmarshal("", &cfg); err != nil {
 		return nil, err
 	}
+
 	return &cfg, nil
 }

@@ -1,2 +1,4 @@
 [server]
 address = "127.0.0.1:8800"
+
+queueRoundTime = 30

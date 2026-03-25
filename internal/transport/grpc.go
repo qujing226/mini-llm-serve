@@ -13,6 +13,8 @@ import (
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1/mini_llm_servev1connect"
 	"github.com/qujing226/mini-llm-serve/internal/conf"
+	"github.com/qujing226/mini-llm-serve/internal/handler"
+	"github.com/qujing226/mini-llm-serve/internal/model"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	brotli "go.withmatt.com/connect-brotli"
@@ -26,17 +28,19 @@ const (
 )
 
 type inferenceService struct {
-	l *zap.SugaredLogger
+	l                *zap.SugaredLogger
+	InferenceHandler handler.InferenceHandler
 }
 
 type InferenceHTTPServer struct {
 	Server *http.Server
 }
 
-func NewLLMServingServer(l *zap.SugaredLogger, serverConf *conf.Conf) *InferenceHTTPServer {
+func NewLLMServingServer(l *zap.SugaredLogger, serverConf *conf.Conf, e handler.InferenceHandler) *InferenceHTTPServer {
 	mux := http.NewServeMux()
 	svc := &inferenceService{
-		l: l,
+		l:                l,
+		InferenceHandler: e,
 	}
 
 	path, handler := mini_llm_servev1connect.NewInferenceServiceHandler(
@@ -108,9 +112,20 @@ func StartInferenceServer(lc fx.Lifecycle, i *InferenceHTTPServer, logger *zap.S
 	})
 }
 
-func (i *inferenceService) Generate(ctx context.Context, c *connect.Request[v1.GenerateRequest]) (*connect.Response[v1.GenerateResponse], error) {
-	//TODO implement me
-	panic("implement me")
+func (i *inferenceService) Generate(ctx context.Context, request *v1.GenerateRequest) (*v1.GenerateResponse, error) {
+	req, err := model.ProtoMsgToModel(request)
+	if err != nil {
+		return nil, err
+	}
+	out, err := i.InferenceHandler.Generate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := model.ModelToProtoMsg(out)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 func extractPortNumber(addr string) (int, error) {

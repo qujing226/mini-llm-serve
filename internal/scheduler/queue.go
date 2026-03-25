@@ -3,6 +3,7 @@ package scheduler
 import (
 	"time"
 
+	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 )
 
@@ -12,12 +13,12 @@ type Queue interface {
 }
 
 type queue struct {
-	round time.Time
+	round time.Duration
 }
 
-func NewQueue(round time.Time) Queue {
+func NewQueue(cfg *conf.Conf) Queue {
 	q := &queue{
-		round: round,
+		round: time.Duration(cfg.Server.QueueRoundTime) * time.Millisecond,
 	}
 	return q
 }

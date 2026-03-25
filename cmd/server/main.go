@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/qujing226/mini-llm-serve/internal/conf"
+	"github.com/qujing226/mini-llm-serve/internal/handler"
+	"github.com/qujing226/mini-llm-serve/internal/scheduler"
 	connect "github.com/qujing226/mini-llm-serve/internal/transport"
 	"github.com/spf13/pflag"
 	"go.uber.org/fx"
@@ -24,6 +26,9 @@ func main() {
 			newLogger),
 		fx.Options(),
 		fx.Provide(
+			scheduler.NewQueue,
+			scheduler.NewScheduler,
+			handler.NewInferenceHandle,
 			connect.NewLLMServingServer,
 		),
 		fx.Invoke(
