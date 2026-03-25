@@ -1,19 +1,8 @@
-package executor
+package worker
 
-import "github.com/qujing226/mini-llm-serve/internal/model"
+import "net/http"
 
-type Executor interface {
-	Execute(batch *model.Batch) ([]*model.TaskResult, error)
-}
-
-type executor struct {
-}
-
-func NewExecutor() Executor {
-	e := &executor{}
-	return e
-}
-
-func (e *executor) Execute(batch *model.Batch) ([]*model.TaskResult, error) {
-	panic("implement me")
+func NewMockPythonExecutor() *http.Client {
+	h := new(http.Client)
+	return h
 }

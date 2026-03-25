@@ -2,7 +2,9 @@ package handler
 
 import (
 	"context"
+	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"github.com/qujing226/mini-llm-serve/internal/scheduler"
 )
@@ -23,14 +25,19 @@ func NewInferenceHandle(s scheduler.Scheduler) InferenceHandler {
 }
 
 func (e *inferenceHandler) Generate(ctx context.Context, in *model.GenerateInput) (*model.GenerateOutput, error) {
-	return &model.GenerateOutput{
-		RequestId:    "",
-		Output:       "",
-		FinishReason: 0,
-		Usage:        model.Usage{},
-		Timing:       model.Timing{},
-		BatchID:      "",
-		BatchSize:    0,
-		WorkerId:     "",
-	}, nil
+	ch, err := e.Scheduler.Enqueue(in)
+	if err != nil {
+		return nil, err
+	}
+	var res *model.GenerateOutput
+	select {
+	case res = <-ch:
+
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-time.After(30 * time.Second):
+		return nil, errors.New("timeout")
+	}
+
+	return res, err
 }

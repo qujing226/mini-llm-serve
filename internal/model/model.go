@@ -56,7 +56,7 @@ type TaskResult struct {
 
 type Batch struct {
 	BatchID   string
-	BatchSize uint32
+	BatchSize int64
 	Tasks     []*Task
 }
 

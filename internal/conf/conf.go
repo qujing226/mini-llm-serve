@@ -18,6 +18,9 @@ type Conf struct {
 type ServerConf struct {
 	Address        string `koanf:"address"`
 	QueueRoundTime int64  `koanf:"queueRoundTime"`
+	QueueLength    int64  `koanf:"queueLength"`
+	BatchSize      int64  `koanf:"batchSize"`
+	BatchTimeout   int64  `koanf:"batchTimeout"`
 }
 
 func NewConfFromPath(path string) (*Conf, error) {

@@ -2,3 +2,7 @@
 address = "127.0.0.1:8800"
 
 queueRoundTime = 30
+queueLength = 100 # ms
+
+batchSize = 10
+batchTimeout = 100 # ms
