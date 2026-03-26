@@ -13,6 +13,7 @@ import (
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1/mini_llm_servev1connect"
 	"github.com/qujing226/mini-llm-serve/internal/conf"
+	appErrors "github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/handler"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"go.uber.org/fx"
@@ -115,15 +116,15 @@ func StartInferenceServer(lc fx.Lifecycle, i *InferenceHTTPServer, logger *zap.S
 func (i *inferenceService) Generate(ctx context.Context, request *v1.GenerateRequest) (*v1.GenerateResponse, error) {
 	req, err := model.ProtoMsgToModel(request)
 	if err != nil {
-		return nil, err
+		return nil, appErrors.ToConnectError(err)
 	}
 	out, err := i.InferenceHandler.Generate(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, appErrors.ToConnectError(err)
 	}
 	resp, err := model.ModelToProtoMsg(out)
 	if err != nil {
-		return nil, err
+		return nil, appErrors.ToConnectError(err)
 	}
 	return resp, nil
 }

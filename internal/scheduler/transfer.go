@@ -15,7 +15,7 @@ func TaskToDomain(t *model.TaskResult) *model.GenerateOutput {
 		Usage:        t.Usage,
 		Timing:       t.Timing,
 		BatchID:      t.BatchID,
-		WorkerId:     t.WorkerId,
+		ExecutorId:   t.ExecutorId,
 	}
 
 	return o
@@ -26,6 +26,7 @@ func DomainToTask(in *model.GenerateInput) (*model.Task, error) {
 	if err != nil {
 		return nil, err
 	}
+	now := time.Now()
 	t := &model.Task{
 		TaskId:     tid,
 		RequestId:  in.RequestId,
@@ -33,8 +34,8 @@ func DomainToTask(in *model.GenerateInput) (*model.Task, error) {
 		Prompt:     in.Prompt,
 		MaxTokens:  in.MaxTokens,
 		Labels:     in.Labels,
-		EnqueuedAt: time.Now(),
-		DeadLine:   time.Now().Add(in.Timeout),
+		EnqueuedAt: now,
+		DeadLine:   now.Add(in.Timeout),
 		ResultCh:   make(chan *model.TaskResult),
 	}
 	return t, nil

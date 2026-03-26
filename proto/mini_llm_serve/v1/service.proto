@@ -30,7 +30,7 @@ message GenerateResponse{
   Usage usage = 4;
   Timing timing = 5;
   BatchInfo batch = 6;
-  string worker_id = 7;
+  string executor_id = 7;
 }
 
 
@@ -55,6 +55,7 @@ message GetRuntimeStatsResponse{
   uint32 queue_len = 1;
   uint32 inflight_requests = 2;
   uint32 inflight_batches = 3;
-  uint32 busy_workers = 4;
-  uint32 idle_workers = 5;
+  uint32 busy_executors = 4;
+  uint32 idle_executors = 5;
 }
+

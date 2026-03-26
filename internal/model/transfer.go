@@ -44,7 +44,7 @@ func ModelToProtoMsg(in *GenerateOutput) (*v1.GenerateResponse, error) {
 		Usage:        usage,
 		Timing:       timing,
 		Batch:        batch,
-		WorkerId:     in.WorkerId,
+		ExecutorId:   in.ExecutorId,
 	}
 
 	return out, nil

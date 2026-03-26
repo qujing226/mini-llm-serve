@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package mini_llm_serve.v1;
+
+import "mini_llm_serve/v1/core.proto";
+
+service ExecutorService{
+  rpc ExecuteBatch(ExecuteBatchRequest) returns (ExecuteBatchResponse);
+}
+
+message ExecuteBatchRequest{
+  string batch_id = 1;
+  repeated ExecuteItem items = 2;
+}
+
+message ExecuteItem {
+  string task_id = 1;
+  string request_id = 2;
+  string prompt = 3;
+  uint32 max_tokens = 4;
+}
+
+message ExecuteBatchResponse{
+  string batch_id = 1;
+  string executor_id = 2;
+  repeated ExecuteResult results =3;
+}
+
+message ExecuteResult{
+  string task_id = 1;
+  string request_id =2;
+  string output_text = 3;
+  FinishReason finish_reason = 4;
+  uint32 input_tokens = 5;
+  uint32 output_tokens = 6;
+  uint32 execution_ms = 7;
+  string error_message = 8;
+}

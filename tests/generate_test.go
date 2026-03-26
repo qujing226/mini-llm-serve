@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"github.com/qujing226/mini-llm-serve/cmd/client"
@@ -12,12 +13,26 @@ import (
 
 func TestGenerate(t *testing.T) {
 	c := client.NewClient([]string{"http://127.0.0.1:8800"})
+	for i := 0; i < 100; i++ {
+		go func(i int) {
+			resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
+				RequestId: "001" + strconv.Itoa(i),
+				Model:     "",
+				Prompt:    "",
+				MaxTokens: 0,
+				TimeoutMs: 1000,
+				Labels:    nil,
+			})
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+		}(i)
+	}
 	resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
-		RequestId: "001",
+		RequestId: "002",
 		Model:     "",
 		Prompt:    "",
 		MaxTokens: 0,
-		TimeoutMs: 0,
+		TimeoutMs: 1000,
 		Labels:    nil,
 	})
 	require.NoError(t, err)

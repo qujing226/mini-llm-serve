@@ -9,25 +9,26 @@ plugins:
     out: ../gen/go
     opt:
       - paths=source_relative
-
   - remote: buf.build/connectrpc/go
     out: ../gen/go
     opt:
       - paths=source_relative
       - simple
-
   - local: protoc-gen-go-enums
     out: ../gen/go
     opt:
       - paths=source_relative
-
   - local: protoc-gen-go-string-consts
     out: ../gen/go
     opt:
       - paths=source_relative
 
   - remote: buf.build/protocolbuffers/python
-    out: ../gen/python
+    out: ../llm_serve
+  - remote: buf.build/protocolbuffers/pyi
+    out: ../llm_serve
+  - remote: buf.build/connectrpc/python
+    out: ../llm_serve
 
 managed:
   enabled: true

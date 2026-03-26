@@ -1,36 +1,62 @@
 package worker
 
 import (
-	"net/http"
+	"context"
+	"sync/atomic"
 
 	"github.com/qujing226/mini-llm-serve/internal/model"
+	"go.uber.org/zap"
 )
 
-type Executor interface {
-	Execute(batch *model.Batch) ([]*model.TaskResult, error)
-	ExecuteOne(task *model.Task) (*model.TaskResult, error)
+type Worker interface {
+	Batch(ctx context.Context, batch *model.Batch) ([]*model.TaskResult, error)
+	One(ctx context.Context, task *model.Task) (*model.TaskResult, error)
 }
 
-type executor struct {
-	executors map[string]*http.Client
+type work struct {
+	logger       *zap.SugaredLogger
+	executors    map[string]Executor
+	executorList []string
+	executorNum  uint64
+
+	idx atomic.Uint64
 }
 
-func NewExecutor(executors map[string]*http.Client) Executor {
-	e := &executor{
-		executors: executors,
+func NewWorker(logger *zap.SugaredLogger, executors map[string]Executor) Worker {
+	executorNum := len(executors)
+
+	// todo: 调度管理
+	executorList := make([]string, executorNum)
+	idx := 0
+	for s, _ := range executors {
+		executorList[idx] = s
+		idx++
+	}
+
+	e := &work{
+		logger:       logger,
+		executors:    executors,
+		executorList: executorList,
+		executorNum:  uint64(executorNum),
 	}
 	return e
 }
 
-func (e *executor) Execute(batch *model.Batch) ([]*model.TaskResult, error) {
-	panic("implement me")
+func (e *work) Batch(ctx context.Context, batch *model.Batch) ([]*model.TaskResult, error) {
+	executor := e.executors[e.executorList[e.idx.Load()%e.executorNum]]
+	e.idx.Add(1)
+	resp, err := executor.Execute(ctx, batch)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
-func (e *executor) ExecuteOne(task *model.Task) (*model.TaskResult, error) {
+func (e *work) One(ctx context.Context, task *model.Task) (*model.TaskResult, error) {
 	return &model.TaskResult{
-		TaskId:        "",
-		RequestId:     "",
-		WorkerId:      "",
+		TaskId:        task.TaskId,
+		RequestId:     task.RequestId,
+		ExecutorId:    "",
 		Output:        "",
 		FinishReason:  0,
 		ExecutionTime: 0,

@@ -23,7 +23,7 @@ type GenerateOutput struct {
 	Timing       Timing
 	BatchID      string
 	BatchSize    uint32
-	WorkerId     string
+	ExecutorId   string
 }
 
 type Task struct {
@@ -39,9 +39,9 @@ type Task struct {
 }
 
 type TaskResult struct {
-	TaskId    string
-	RequestId string
-	WorkerId  string
+	TaskId     string
+	RequestId  string
+	ExecutorId string
 
 	Output string
 
@@ -57,6 +57,7 @@ type TaskResult struct {
 type Batch struct {
 	BatchID   string
 	BatchSize int64
+	CreateAt  time.Time
 	Tasks     []*Task
 }
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/cockroachdb/errors"
+	"github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"github.com/qujing226/mini-llm-serve/internal/scheduler"
 )
@@ -34,9 +34,11 @@ func (e *inferenceHandler) Generate(ctx context.Context, in *model.GenerateInput
 	case res = <-ch:
 
 	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-time.After(30 * time.Second):
-		return nil, errors.New("timeout")
+		e.Scheduler.Cancel(in.RequestId)
+		return nil, errors.Wrap(errors.CodeRequestCanceled, "handler.generate", "request canceled", ctx.Err())
+	case <-time.After(in.Timeout):
+		e.Scheduler.Cancel(in.RequestId)
+		return nil, errors.New(errors.CodeRequestTimeout, "request timeout")
 	}
 
 	return res, err
