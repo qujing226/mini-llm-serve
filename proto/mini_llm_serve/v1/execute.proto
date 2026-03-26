@@ -4,7 +4,7 @@ package mini_llm_serve.v1;
 
 import "mini_llm_serve/v1/core.proto";
 
-service ExecutorService{
+service ExecuteService{
   rpc ExecuteBatch(ExecuteBatchRequest) returns (ExecuteBatchResponse);
 }
 

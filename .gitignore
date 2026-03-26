@@ -1,5 +1,8 @@
 /bin
+bin
 .vscode
 .idea
 tmp
 .venv
+
+gen
