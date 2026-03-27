@@ -12,7 +12,8 @@ import (
 )
 
 type Conf struct {
-	Server ServerConf `koanf:"server"`
+	Server    ServerConf     `koanf:"server"`
+	Executors []ExecutorConf `koanf:"executors"`
 }
 
 type ServerConf struct {
@@ -21,6 +22,13 @@ type ServerConf struct {
 	QueueLength    uint64 `koanf:"queueLength"`
 	BatchSize      uint64 `koanf:"batchSize"`
 	BatchTimeout   uint64 `koanf:"batchTimeout"`
+}
+
+type ExecutorConf struct {
+	ID      string   `koanf:"id"`
+	Kind    string   `koanf:"kind"`
+	Address []string `koanf:"address"`
+	Enabled bool     `koanf:"enabled"`
 }
 
 func NewConfFromPath(path string) (*Conf, error) {

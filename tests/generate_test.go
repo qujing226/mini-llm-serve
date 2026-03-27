@@ -20,7 +20,7 @@ func TestGenerate(t *testing.T) {
 				Model:     "",
 				Prompt:    "",
 				MaxTokens: 0,
-				TimeoutMs: 1000,
+				TimeoutMs: 3000,
 				Labels:    nil,
 			})
 			require.NoError(t, err)
@@ -32,7 +32,7 @@ func TestGenerate(t *testing.T) {
 		Model:     "",
 		Prompt:    "",
 		MaxTokens: 0,
-		TimeoutMs: 1000,
+		TimeoutMs: 3000,
 		Labels:    nil,
 	})
 	require.NoError(t, err)

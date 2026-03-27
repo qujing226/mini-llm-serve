@@ -1,5 +1,5 @@
 version: v2
-clean: true
+#clean: true
 
 inputs:
   - directory: .
@@ -24,11 +24,11 @@ plugins:
       - paths=source_relative
 
   - remote: buf.build/protocolbuffers/python
-    out: ../llm_serve/gen
+    out: ../llm_serve
   - remote: buf.build/protocolbuffers/pyi
-    out: ../llm_serve/gen
+    out: ../llm_serve
   - remote: buf.build/connectrpc/python
-    out: ../llm_serve/gen
+    out: ../llm_serve
 
 managed:
   enabled: true

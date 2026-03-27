@@ -6,3 +6,15 @@ queueLength = 100 # ms
 
 batchSize = 10
 batchTimeout = 100 # ms
+
+[[executors]]
+id = "mock-python"
+kind = "connect"
+address = ["http://127.0.0.1:9991"]
+enabled = true
+
+[[executors]]
+id = "ollama-local"
+kind = "http"
+address = ["http://127.0.0.1:11434"]
+enabled = false
