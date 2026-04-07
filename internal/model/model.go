@@ -56,12 +56,18 @@ type TaskResult struct {
 
 type Batch struct {
 	BatchID   string
-	BatchSize int64
+	BatchSize uint64
 	CreateAt  time.Time
 	Tasks     []*Task
 }
 
-type RuntimeStats struct{}
+type RuntimeStats struct {
+	QueueLength      uint64
+	InflightRequests uint64
+	InflightBatches  uint64
+	BusyExecutors    uint64
+	IdleExecutors    uint64
+}
 
 type Usage struct {
 	InputTokens  uint32
@@ -70,8 +76,8 @@ type Usage struct {
 }
 
 type Timing struct {
-	QueueMs     uint32
-	BatchWaitMs uint32
-	ExecutionMs uint32
-	TotalMs     uint32
+	Queue     time.Duration
+	BatchWait time.Duration
+	Execution time.Duration
+	Total     time.Duration
 }

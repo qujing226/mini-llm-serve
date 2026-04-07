@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
+	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"go.uber.org/zap"
 )
@@ -19,10 +20,11 @@ type work struct {
 	executorList []string
 	executorNum  uint64
 
-	idx atomic.Uint64
+	idx     atomic.Uint64
+	metrics metrics.Metrics
 }
 
-func NewWorker(logger *zap.SugaredLogger, executors map[string]Executor) Worker {
+func NewWorker(logger *zap.SugaredLogger, executors map[string]Executor, metrics metrics.Metrics) Worker {
 	executorNum := len(executors)
 
 	// todo: 调度管理
@@ -38,15 +40,21 @@ func NewWorker(logger *zap.SugaredLogger, executors map[string]Executor) Worker 
 		executors:    executors,
 		executorList: executorList,
 		executorNum:  uint64(executorNum),
+		metrics:      metrics,
 	}
 	return e
 }
 
 func (e *work) Batch(ctx context.Context, batch *model.Batch) ([]*model.TaskResult, error) {
-	executor := e.executors[e.executorList[e.idx.Load()%e.executorNum]]
+	executorId := e.executorList[e.idx.Load()%e.executorNum]
+	executor := e.executors[executorId]
 	e.idx.Add(1)
+	// metrics: add batch process number for each executor
+	e.metrics.IncBatches(executorId)
+
 	resp, err := executor.Execute(ctx, batch)
 	if err != nil {
+		e.metrics.IncExecutorErrors(executorId)
 		return nil, err
 	}
 	return resp, nil

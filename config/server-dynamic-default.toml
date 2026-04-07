@@ -2,8 +2,8 @@
 address = "127.0.0.1:8800"
 adminPort = 8801
 
-queueRoundTime = 30
-queueLength = 100 # ms
+queueRoundTime = 30 # ms,DRR
+queueLength = 1000
 
 batchSize = 10
 batchRoundDuration = 100 # ms

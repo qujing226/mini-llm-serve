@@ -31,7 +31,7 @@ func NewQueue(cfg *conf.Conf) Queue {
 	q := &queue{
 		size:  length,
 		tasks: make([]*model.Task, 0, length),
-		round: time.Duration(cfg.Server.QueueRoundTime) * time.Millisecond,
+		round: cfg.Server.QueueRoundInterval(),
 	}
 	return q
 }

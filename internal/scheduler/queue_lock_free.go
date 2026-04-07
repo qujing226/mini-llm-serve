@@ -34,7 +34,7 @@ func NewLockFreeQueue(cfg *conf.Conf) Queue {
 	q := &lockFreeQueue{
 		size:  length,
 		buf:   make([]*model.Task, length),
-		round: time.Duration(cfg.Server.QueueRoundTime) * time.Millisecond,
+		round: cfg.Server.QueueRoundInterval(),
 	}
 	return q
 }

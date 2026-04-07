@@ -3,6 +3,7 @@ package conf
 import (
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/parsers/toml/v2"
@@ -17,11 +18,20 @@ type Conf struct {
 }
 
 type ServerConf struct {
-	Address        string `koanf:"address"`
-	QueueRoundTime int64  `koanf:"queueRoundTime"`
-	QueueLength    uint64 `koanf:"queueLength"`
-	BatchSize      uint64 `koanf:"batchSize"`
-	BatchTimeout   uint64 `koanf:"batchTimeout"`
+	Address            string `koanf:"address"`
+	AdminPort          uint64 `koanf:"adminPort"`
+	QueueRoundTime     uint64  `koanf:"queueRoundTime"`
+	QueueLength        uint64 `koanf:"queueLength"`
+	BatchSize          uint64 `koanf:"batchSize"`
+	BatchRoundDuration uint64 `koanf:"batchRoundDuration"`
+}
+
+func (s ServerConf) QueueRoundInterval() time.Duration {
+	return time.Duration(s.QueueRoundTime) * time.Millisecond
+}
+
+func (s ServerConf) BatchRoundInterval() time.Duration {
+	return time.Duration(s.BatchRoundDuration) * time.Millisecond
 }
 
 type ExecutorConf struct {

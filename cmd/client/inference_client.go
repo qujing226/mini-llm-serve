@@ -16,11 +16,15 @@ type InferenceClient struct {
 }
 
 func NewClient(endpoints []string) *InferenceClient {
+	return NewClientWithTimeout(endpoints, 5*time.Second)
+}
+
+func NewClientWithTimeout(endpoints []string, timeout time.Duration) *InferenceClient {
 	transport := newLongConnTransport()
 	c := &InferenceClient{
 		httpClient: &http.Client{
 			Transport: transport,
-			Timeout:   time.Second * 5,
+			Timeout:   timeout,
 		},
 		endpoints: endpoints,
 	}

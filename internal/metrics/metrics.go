@@ -1,0 +1,187 @@
+package metrics
+
+import (
+	"net/http"
+	"sync"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/qujing226/mini-llm-serve/internal/model"
+)
+
+type Metrics interface {
+	IncRequest(status string, executorID string)
+	ObserveRequestDuration(s float64)
+	ObserveQueueWait(s float64)
+	ObserveExecution(s float64, executorID string)
+	ObserveBatchSize(size int)
+	IncBatches(executorID string)
+	SetQueueLength(n int)
+	SetInflightRequests(n int)
+	SetInflightBatches(n int)
+	IncQueueRejected()
+	IncExecutorErrors(executorID string)
+	Handler() http.Handler
+	Snapshot() model.RuntimeStats
+}
+
+type metrics struct {
+	re *prometheus.Registry
+
+	requestsTotal          *prometheus.CounterVec
+	requestDurationSeconds prometheus.Histogram
+	queueWaitSeconds       prometheus.Histogram
+	executionSeconds       *prometheus.HistogramVec
+	batchSize              prometheus.Histogram
+	batchesTotal           *prometheus.CounterVec
+	queueLength            prometheus.Gauge
+	inflightRequests       prometheus.Gauge
+	inflightBatches        prometheus.Gauge
+	queueRejectedTotal     prometheus.Counter
+	executorErrorsTotal    *prometheus.CounterVec
+
+	mu sync.RWMutex
+	m  *model.RuntimeStats
+}
+
+func NewMetrics() Metrics {
+	m := &metrics{
+		requestsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "llm_requests_total",
+			Help: "Total number of requests",
+		}, []string{"status", "executor"}),
+		requestDurationSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Name:    "llm_request_duration_seconds",
+			Help:    "Request duration in seconds",
+			Buckets: []float64{0.05, 0.1, 0.2, 0.5, 1, 1.5, 2, 3, 5, 10},
+		}),
+		queueWaitSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Name:    "llm_queue_wait_seconds",
+			Help:    "Request queue wait in seconds",
+			Buckets: []float64{0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1},
+		}),
+		executionSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Name: "llm_execution_seconds",
+			Help: "Execution time in seconds",
+		},
+			[]string{"executor"},
+		),
+		batchSize: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Name:    "llm_batch_size",
+			Help:    "Number of requests in a batch",
+			Buckets: prometheus.LinearBuckets(3, 3, 4),
+		}),
+		batchesTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "llm_batches_total",
+			Help: "Number of batches which executor had processed",
+		}, []string{"executor"}),
+		queueLength: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "llm_queue_length",
+			Help: "Number of queued requests",
+		}),
+		inflightRequests: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "llm_inflight_requests",
+			Help: "Number of inflight requests",
+		}),
+		inflightBatches: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "llm_inflight_batches",
+			Help: "Number of inflight batches",
+		}),
+		queueRejectedTotal: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "llm_queue_rejected_total",
+			Help: "Total Number of rejected requests due to full queue",
+		}),
+		executorErrorsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "llm_executor_errors_total",
+			Help: "Total Number of executor errors",
+		}, []string{"executor"}),
+		m: &model.RuntimeStats{
+			QueueLength:      0,
+			InflightRequests: 0,
+			InflightBatches:  0,
+			BusyExecutors:    0,
+			IdleExecutors:    0,
+		},
+	}
+	m.re = prometheus.NewRegistry()
+	m.re.MustRegister(
+		m.requestsTotal,
+		m.requestDurationSeconds,
+		m.queueWaitSeconds,
+		m.executionSeconds,
+		m.batchSize,
+		m.batchesTotal,
+		m.queueLength,
+		m.inflightRequests,
+		m.inflightBatches,
+		m.queueRejectedTotal,
+		m.executorErrorsTotal,
+	)
+	return m
+}
+
+func (m *metrics) Handler() http.Handler {
+	return promhttp.HandlerFor(m.re, promhttp.HandlerOpts{})
+}
+
+func (m *metrics) Snapshot() model.RuntimeStats {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	s := *m.m
+	return s
+}
+
+func (m *metrics) IncRequest(status string, executorID string) {
+	m.requestsTotal.WithLabelValues(status, executorID).Inc()
+}
+
+func (m *metrics) ObserveRequestDuration(s float64) {
+	m.requestDurationSeconds.Observe(s)
+}
+
+func (m *metrics) ObserveQueueWait(s float64) {
+	m.queueWaitSeconds.Observe(s)
+}
+
+func (m *metrics) ObserveExecution(s float64, executorID string) {
+	m.executionSeconds.WithLabelValues(executorID).Observe(s)
+
+}
+
+func (m *metrics) ObserveBatchSize(size int) {
+	m.batchSize.Observe(float64(size))
+}
+
+func (m *metrics) IncBatches(executorID string) {
+	m.batchesTotal.WithLabelValues(executorID).Inc()
+}
+
+func (m *metrics) SetQueueLength(n int) {
+	m.queueLength.Set(float64(n))
+	m.mu.Lock()
+	m.m.QueueLength = uint64(n)
+	m.mu.Unlock()
+}
+
+func (m *metrics) SetInflightRequests(n int) {
+	m.inflightRequests.Set(float64(n))
+	m.mu.Lock()
+	m.m.InflightRequests = uint64(n)
+	m.mu.Unlock()
+}
+
+func (m *metrics) SetInflightBatches(n int) {
+	m.inflightBatches.Set(float64(n))
+	m.mu.Lock()
+	m.m.InflightBatches = uint64(n)
+	m.mu.Unlock()
+}
+
+func (m *metrics) IncQueueRejected() {
+	m.queueRejectedTotal.Inc()
+
+}
+
+func (m *metrics) IncExecutorErrors(executorID string) {
+	m.executorErrorsTotal.WithLabelValues(executorID).Inc()
+}

@@ -26,10 +26,10 @@ func ModelToProtoMsg(in *GenerateOutput) (*v1.GenerateResponse, error) {
 	}
 
 	timing := &v1.Timing{
-		QueueMs:     in.Timing.QueueMs,
-		BatchWaitMs: in.Timing.BatchWaitMs,
-		ExecutionMs: in.Timing.ExecutionMs,
-		TotalMs:     in.Timing.TotalMs,
+		QueueMs:     durationToMilliseconds(in.Timing.Queue),
+		BatchWaitMs: durationToMilliseconds(in.Timing.BatchWait),
+		ExecutionMs: durationToMilliseconds(in.Timing.Execution),
+		TotalMs:     durationToMilliseconds(in.Timing.Total),
 	}
 
 	batch := &v1.BatchInfo{
@@ -48,4 +48,11 @@ func ModelToProtoMsg(in *GenerateOutput) (*v1.GenerateResponse, error) {
 	}
 
 	return out, nil
+}
+
+func durationToMilliseconds(d time.Duration) uint32 {
+	if d <= 0 {
+		return 0
+	}
+	return uint32(d / time.Millisecond)
 }

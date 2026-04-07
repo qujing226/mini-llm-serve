@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/qujing226/mini-llm-serve/cmd/client"
@@ -13,7 +14,9 @@ import (
 
 func TestGenerate(t *testing.T) {
 	c := client.NewClient([]string{"http://127.0.0.1:8800"})
+	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
+		wg.Add(1)
 		go func(i int) {
 			resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
 				RequestId: "001" + strconv.Itoa(i),
@@ -25,8 +28,11 @@ func TestGenerate(t *testing.T) {
 			})
 			require.NoError(t, err)
 			require.NotNil(t, resp)
+			require.Equal(t, resp.FinishReason, v1.FinishReasonStop)
+			wg.Done()
 		}(i)
 	}
+	wg.Wait()
 	resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
 		RequestId: "002",
 		Model:     "",

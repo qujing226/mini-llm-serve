@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/handler"
+	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/scheduler"
 	connect "github.com/qujing226/mini-llm-serve/internal/transport"
 	"github.com/qujing226/mini-llm-serve/internal/worker"
@@ -32,15 +33,18 @@ func main() {
 		}),
 		fx.Options(),
 		fx.Provide(
+			metrics.NewMetrics,
+
 			worker.NewExecutors,
 			worker.NewWorker,
 			scheduler.NewQueue,
 			scheduler.NewScheduler,
 			handler.NewInferenceHandle,
 			connect.NewLLMServingServer,
+			connect.NewAdminService,
 		),
 		fx.Invoke(
-			connect.StartInferenceServer,
+			connect.StartServer,
 			StartBatchLoop,
 		),
 	)

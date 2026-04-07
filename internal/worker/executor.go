@@ -141,10 +141,10 @@ func (m *mockExecutor) ExecuteToBatch(batchId string, resp *v1.ExecuteBatchRespo
 			Error:   err,
 			BatchID: batchId,
 			Timing: model.Timing{
-				QueueMs:     0,
-				BatchWaitMs: 0,
-				ExecutionMs: item.ExecutionMs,
-				TotalMs:     0,
+				Queue:     0,
+				BatchWait: 0,
+				Execution: time.Duration(item.ExecutionMs) * time.Millisecond,
+				Total:     0,
 			},
 		})
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	appErrors "github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/handler"
+	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -31,17 +32,19 @@ const (
 type inferenceService struct {
 	l                *zap.SugaredLogger
 	InferenceHandler handler.InferenceHandler
+	metrics          metrics.Metrics
 }
 
 type InferenceHTTPServer struct {
 	Server *http.Server
 }
 
-func NewLLMServingServer(l *zap.SugaredLogger, serverConf *conf.Conf, e handler.InferenceHandler) *InferenceHTTPServer {
+func NewLLMServingServer(l *zap.SugaredLogger, serverConf *conf.Conf, e handler.InferenceHandler, metrics metrics.Metrics) *InferenceHTTPServer {
 	mux := http.NewServeMux()
 	svc := &inferenceService{
 		l:                l,
 		InferenceHandler: e,
+		metrics:          metrics,
 	}
 
 	path, handler := mini_llm_servev1connect.NewInferenceServiceHandler(
@@ -75,15 +78,22 @@ func NewLLMServingServer(l *zap.SugaredLogger, serverConf *conf.Conf, e handler.
 	}
 }
 
-func StartInferenceServer(lc fx.Lifecycle, i *InferenceHTTPServer, logger *zap.SugaredLogger) {
+func StartServer(lc fx.Lifecycle, i *InferenceHTTPServer, a *AdminServer, logger *zap.SugaredLogger) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", i.Server.Addr)
+			iListener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", i.Server.Addr)
 			if err != nil {
-				logger.Errorw("failed to listen", "addr", i.Server.Addr, "err", err)
+				logger.Errorw("[inference] failed to listen", "addr", i.Server.Addr, "err", err)
 				return err
 			}
-			logger.Infof("listening on %s", i.Server.Addr)
+			logger.Infof("[inference] listening on %s", i.Server.Addr)
+
+			aListener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", a.Server.Addr)
+			if err != nil {
+				logger.Errorw("[admin] failed to listen", "addr", a.Server.Addr, "err", err)
+				return err
+			}
+			logger.Infof("[admin] listening on %s", a.Server.Addr)
 
 			go func() {
 				defer func() {
@@ -91,39 +101,70 @@ func StartInferenceServer(lc fx.Lifecycle, i *InferenceHTTPServer, logger *zap.S
 						logger.Infow("recovered from panic", "err", r)
 					}
 				}()
-				if serErr := i.Server.Serve(listener); serErr != nil &&
+				if serErr := i.Server.Serve(iListener); serErr != nil &&
 					!errors.Is(serErr, http.ErrServerClosed) {
-					logger.Errorw("failed to serve", "addr", i.Server.Addr, "err", serErr)
+					logger.Errorw("[inference] failed to serve", "addr", i.Server.Addr, "err", serErr)
+				}
+			}()
+
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						logger.Infow("recovered from panic", "err", r)
+					}
+				}()
+				if serErr := a.Server.Serve(aListener); serErr != nil &&
+					!errors.Is(serErr, http.ErrServerClosed) {
+					logger.Errorw("[admin] failed to serve", "addr", a.Server.Addr, "err", serErr)
 				}
 			}()
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			shoutdownCtx, cancel := context.WithTimeout(ctx, ServerShutdownTimeout)
-			defer cancel()
 
-			logger.Info("shutting down server...")
-			if err := i.Server.Shutdown(shoutdownCtx); err != nil {
-				logger.Errorw("failed to shutdown server", "err", err)
+			logger.Info("shutting down [inference] Server...")
+			if err := i.Server.Shutdown(ctx); err != nil {
+				logger.Errorw("failed to shutdown [inference] Server", "err", err)
 				return err
 			}
-			logger.Info("server shutdown gracefully")
+			logger.Info("shutting down [admin] Server...")
+			if err := a.Server.Shutdown(ctx); err != nil {
+				logger.Errorw("failed to shutdown [admin] Server", "err", err)
+				return err
+			}
+			logger.Info("Server shutdown gracefully")
 			return nil
 		},
 	})
 }
 
 func (i *inferenceService) Generate(ctx context.Context, request *v1.GenerateRequest) (*v1.GenerateResponse, error) {
+	var (
+		status           = "ok"
+		executorId       = "unknown"
+		requestStartTime = time.Now()
+	)
+	defer func() {
+		requestEndTime := time.Now()
+		i.metrics.ObserveRequestDuration(requestEndTime.Sub(requestStartTime).Seconds())
+		i.metrics.IncRequest(status, executorId)
+	}()
+
 	req, err := model.ProtoMsgToModel(request)
 	if err != nil {
+		status = string(appErrors.CodeOf(err))
 		return nil, appErrors.ToConnectError(err)
 	}
 	out, err := i.InferenceHandler.Generate(ctx, req)
 	if err != nil {
+		status = string(appErrors.CodeOf(err))
 		return nil, appErrors.ToConnectError(err)
 	}
+	executorId = out.ExecutorId
+
 	resp, err := model.ModelToProtoMsg(out)
 	if err != nil {
+		status = string(appErrors.CodeOf(err))
 		return nil, appErrors.ToConnectError(err)
 	}
 	return resp, nil
