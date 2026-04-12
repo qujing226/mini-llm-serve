@@ -14,7 +14,7 @@
 
 A compact LLM serving system for learning, experimentation, and scheduler prototyping.
 
-[中文版本](./README_zh.md)
+[中文](./README_zh.md)
 
 ## What This Project Is
 
