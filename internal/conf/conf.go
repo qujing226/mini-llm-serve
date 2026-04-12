@@ -20,7 +20,7 @@ type Conf struct {
 type ServerConf struct {
 	Address            string `koanf:"address"`
 	AdminPort          uint64 `koanf:"adminPort"`
-	QueueRoundTime     uint64  `koanf:"queueRoundTime"`
+	QueueRoundTime     uint64 `koanf:"queueRoundTime"`
 	QueueLength        uint64 `koanf:"queueLength"`
 	BatchSize          uint64 `koanf:"batchSize"`
 	BatchRoundDuration uint64 `koanf:"batchRoundDuration"`
