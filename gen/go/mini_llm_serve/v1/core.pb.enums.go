@@ -10,3 +10,16 @@ const (
 	FinishReasonTimeout     = FinishReason_FINISH_REASON_TIMEOUT
 	FinishReasonError       = FinishReason_FINISH_REASON_ERROR
 )
+
+const (
+	WorkPhasePrefill = WorkPhase_WORK_PHASE_PREFILL
+	WorkPhaseDecode  = WorkPhase_WORK_PHASE_DECODE
+)
+
+const (
+	EventTypePrefillFinished = EventType_EVENT_TYPE_PREFILL_FINISHED
+	EventTypeDecodeChunk     = EventType_EVENT_TYPE_DECODE_CHUNK
+	EventTypeRequestFinished = EventType_EVENT_TYPE_REQUEST_FINISHED
+	EventTypeRequestFailed   = EventType_EVENT_TYPE_REQUEST_FAILED
+	EventTypeRequestCanceled = EventType_EVENT_TYPE_REQUEST_CANCELED
+)

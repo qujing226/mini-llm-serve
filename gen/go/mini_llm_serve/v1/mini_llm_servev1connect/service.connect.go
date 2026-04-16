@@ -38,6 +38,9 @@ const (
 	// InferenceServiceGenerateProcedure is the fully-qualified name of the InferenceService's Generate
 	// RPC.
 	InferenceServiceGenerateProcedure = "/mini_llm_serve.v1.InferenceService/Generate"
+	// InferenceServiceGenerateStreamProcedure is the fully-qualified name of the InferenceService's
+	// GenerateStream RPC.
+	InferenceServiceGenerateStreamProcedure = "/mini_llm_serve.v1.InferenceService/GenerateStream"
 	// AdminServiceHealthProcedure is the fully-qualified name of the AdminService's Health RPC.
 	AdminServiceHealthProcedure = "/mini_llm_serve.v1.AdminService/Health"
 	// AdminServiceGetRuntimeStatsProcedure is the fully-qualified name of the AdminService's
@@ -48,6 +51,7 @@ const (
 // InferenceServiceClient is a client for the mini_llm_serve.v1.InferenceService service.
 type InferenceServiceClient interface {
 	Generate(context.Context, *v1.GenerateRequest) (*v1.GenerateResponse, error)
+	GenerateStream(context.Context, *v1.GenerateRequest) (*connect.ServerStreamForClient[v1.GenerateResponseChunk], error)
 }
 
 // NewInferenceServiceClient constructs a client for the mini_llm_serve.v1.InferenceService service.
@@ -67,12 +71,19 @@ func NewInferenceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(inferenceServiceMethods.ByName("Generate")),
 			connect.WithClientOptions(opts...),
 		),
+		generateStream: connect.NewClient[v1.GenerateRequest, v1.GenerateResponseChunk](
+			httpClient,
+			baseURL+InferenceServiceGenerateStreamProcedure,
+			connect.WithSchema(inferenceServiceMethods.ByName("GenerateStream")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // inferenceServiceClient implements InferenceServiceClient.
 type inferenceServiceClient struct {
-	generate *connect.Client[v1.GenerateRequest, v1.GenerateResponse]
+	generate       *connect.Client[v1.GenerateRequest, v1.GenerateResponse]
+	generateStream *connect.Client[v1.GenerateRequest, v1.GenerateResponseChunk]
 }
 
 // Generate calls mini_llm_serve.v1.InferenceService.Generate.
@@ -84,9 +95,15 @@ func (c *inferenceServiceClient) Generate(ctx context.Context, req *v1.GenerateR
 	return nil, err
 }
 
+// GenerateStream calls mini_llm_serve.v1.InferenceService.GenerateStream.
+func (c *inferenceServiceClient) GenerateStream(ctx context.Context, req *v1.GenerateRequest) (*connect.ServerStreamForClient[v1.GenerateResponseChunk], error) {
+	return c.generateStream.CallServerStream(ctx, connect.NewRequest(req))
+}
+
 // InferenceServiceHandler is an implementation of the mini_llm_serve.v1.InferenceService service.
 type InferenceServiceHandler interface {
 	Generate(context.Context, *v1.GenerateRequest) (*v1.GenerateResponse, error)
+	GenerateStream(context.Context, *v1.GenerateRequest, *connect.ServerStream[v1.GenerateResponseChunk]) error
 }
 
 // NewInferenceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -102,10 +119,18 @@ func NewInferenceServiceHandler(svc InferenceServiceHandler, opts ...connect.Han
 		connect.WithSchema(inferenceServiceMethods.ByName("Generate")),
 		connect.WithHandlerOptions(opts...),
 	)
+	inferenceServiceGenerateStreamHandler := connect.NewServerStreamHandlerSimple(
+		InferenceServiceGenerateStreamProcedure,
+		svc.GenerateStream,
+		connect.WithSchema(inferenceServiceMethods.ByName("GenerateStream")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/mini_llm_serve.v1.InferenceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InferenceServiceGenerateProcedure:
 			inferenceServiceGenerateHandler.ServeHTTP(w, r)
+		case InferenceServiceGenerateStreamProcedure:
+			inferenceServiceGenerateStreamHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -117,6 +142,10 @@ type UnimplementedInferenceServiceHandler struct{}
 
 func (UnimplementedInferenceServiceHandler) Generate(context.Context, *v1.GenerateRequest) (*v1.GenerateResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mini_llm_serve.v1.InferenceService.Generate is not implemented"))
+}
+
+func (UnimplementedInferenceServiceHandler) GenerateStream(context.Context, *v1.GenerateRequest, *connect.ServerStream[v1.GenerateResponseChunk]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("mini_llm_serve.v1.InferenceService.GenerateStream is not implemented"))
 }
 
 // AdminServiceClient is a client for the mini_llm_serve.v1.AdminService service.

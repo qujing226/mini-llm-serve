@@ -78,6 +78,107 @@ func (FinishReason) EnumDescriptor() ([]byte, []int) {
 	return file_mini_llm_serve_v1_core_proto_rawDescGZIP(), []int{0}
 }
 
+type WorkPhase int32
+
+const (
+	WorkPhase_WORK_PHASE_PREFILL WorkPhase = 0
+	WorkPhase_WORK_PHASE_DECODE  WorkPhase = 1
+)
+
+// Enum value maps for WorkPhase.
+var (
+	WorkPhase_name = map[int32]string{
+		0: "WORK_PHASE_PREFILL",
+		1: "WORK_PHASE_DECODE",
+	}
+	WorkPhase_value = map[string]int32{
+		"WORK_PHASE_PREFILL": 0,
+		"WORK_PHASE_DECODE":  1,
+	}
+)
+
+func (x WorkPhase) Enum() *WorkPhase {
+	p := new(WorkPhase)
+	*p = x
+	return p
+}
+
+func (x WorkPhase) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WorkPhase) Descriptor() protoreflect.EnumDescriptor {
+	return file_mini_llm_serve_v1_core_proto_enumTypes[1].Descriptor()
+}
+
+func (WorkPhase) Type() protoreflect.EnumType {
+	return &file_mini_llm_serve_v1_core_proto_enumTypes[1]
+}
+
+func (x WorkPhase) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WorkPhase.Descriptor instead.
+func (WorkPhase) EnumDescriptor() ([]byte, []int) {
+	return file_mini_llm_serve_v1_core_proto_rawDescGZIP(), []int{1}
+}
+
+type EventType int32
+
+const (
+	EventType_EVENT_TYPE_PREFILL_FINISHED EventType = 0
+	EventType_EVENT_TYPE_DECODE_CHUNK     EventType = 1
+	EventType_EVENT_TYPE_REQUEST_FINISHED EventType = 2
+	EventType_EVENT_TYPE_REQUEST_FAILED   EventType = 3
+	EventType_EVENT_TYPE_REQUEST_CANCELED EventType = 4
+)
+
+// Enum value maps for EventType.
+var (
+	EventType_name = map[int32]string{
+		0: "EVENT_TYPE_PREFILL_FINISHED",
+		1: "EVENT_TYPE_DECODE_CHUNK",
+		2: "EVENT_TYPE_REQUEST_FINISHED",
+		3: "EVENT_TYPE_REQUEST_FAILED",
+		4: "EVENT_TYPE_REQUEST_CANCELED",
+	}
+	EventType_value = map[string]int32{
+		"EVENT_TYPE_PREFILL_FINISHED": 0,
+		"EVENT_TYPE_DECODE_CHUNK":     1,
+		"EVENT_TYPE_REQUEST_FINISHED": 2,
+		"EVENT_TYPE_REQUEST_FAILED":   3,
+		"EVENT_TYPE_REQUEST_CANCELED": 4,
+	}
+)
+
+func (x EventType) Enum() *EventType {
+	p := new(EventType)
+	*p = x
+	return p
+}
+
+func (x EventType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (EventType) Descriptor() protoreflect.EnumDescriptor {
+	return file_mini_llm_serve_v1_core_proto_enumTypes[2].Descriptor()
+}
+
+func (EventType) Type() protoreflect.EnumType {
+	return &file_mini_llm_serve_v1_core_proto_enumTypes[2]
+}
+
+func (x EventType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EventType.Descriptor instead.
+func (EventType) EnumDescriptor() ([]byte, []int) {
+	return file_mini_llm_serve_v1_core_proto_rawDescGZIP(), []int{2}
+}
+
 type Usage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	InputTokens   uint32                 `protobuf:"varint,1,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
@@ -281,7 +382,20 @@ const file_mini_llm_serve_v1_core_proto_rawDesc = "" +
 	"\x12FINISH_REASON_STOP\x10\x01\x12\x18\n" +
 	"\x14FINISH_REASON_LENGTH\x10\x02\x12\x19\n" +
 	"\x15FINISH_REASON_TIMEOUT\x10\x03\x12\x17\n" +
-	"\x13FINISH_REASON_ERROR\x10\x04\x1aN\xa0\xe3,\x01\xaa\xe3,\rFinishReason_\xb0\xe3,\x01\xca\xe3,\x03Str\xd2\xe3,\x0eFINISH_REASON_\xda\xe3,\x03FR_\xca\xe4,\rFinishReason_\xd0\xe4,\x01B\xce\x01\n" +
+	"\x13FINISH_REASON_ERROR\x10\x04\x1aN\xa0\xe3,\x01\xaa\xe3,\rFinishReason_\xb0\xe3,\x01\xca\xe3,\x03Str\xd2\xe3,\x0eFINISH_REASON_\xda\xe3,\x03FR_\xca\xe4,\rFinishReason_\xd0\xe4,\x01*\x81\x01\n" +
+	"\tWorkPhase\x12\x16\n" +
+	"\x12WORK_PHASE_PREFILL\x10\x00\x12\x15\n" +
+	"\x11WORK_PHASE_DECODE\x10\x01\x1aE\xa0\xe3,\x01\xaa\xe3,\n" +
+	"WorkPhase_\xb0\xe3,\x01\xca\xe3,\x03Str\xd2\xe3,\vWORK_PHASE_\xda\xe3,\x03WR_\xca\xe4,\n" +
+	"WorkPhase_\xd0\xe4,\x01*\xf1\x01\n" +
+	"\tEventType\x12\x1f\n" +
+	"\x1bEVENT_TYPE_PREFILL_FINISHED\x10\x00\x12\x1b\n" +
+	"\x17EVENT_TYPE_DECODE_CHUNK\x10\x01\x12\x1f\n" +
+	"\x1bEVENT_TYPE_REQUEST_FINISHED\x10\x02\x12\x1d\n" +
+	"\x19EVENT_TYPE_REQUEST_FAILED\x10\x03\x12\x1f\n" +
+	"\x1bEVENT_TYPE_REQUEST_CANCELED\x10\x04\x1aE\xa0\xe3,\x01\xaa\xe3,\n" +
+	"EventType_\xb0\xe3,\x01\xca\xe3,\x03Str\xd2\xe3,\vEVENT_TYPE_\xda\xe3,\x03ET_\xca\xe4,\n" +
+	"EventType_\xd0\xe4,\x01B\xce\x01\n" +
 	"\x15com.mini_llm_serve.v1B\tCoreProtoP\x01ZMgithub.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1;mini_llm_servev1\xa2\x02\x03MXX\xaa\x02\x0fMiniLlmServe.V1\xca\x02\x0fMiniLlmServe\\V1\xe2\x02\x1bMiniLlmServe\\V1\\GPBMetadata\xea\x02\x10MiniLlmServe::V1b\x06proto3"
 
 var (
@@ -296,13 +410,15 @@ func file_mini_llm_serve_v1_core_proto_rawDescGZIP() []byte {
 	return file_mini_llm_serve_v1_core_proto_rawDescData
 }
 
-var file_mini_llm_serve_v1_core_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_mini_llm_serve_v1_core_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_mini_llm_serve_v1_core_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_mini_llm_serve_v1_core_proto_goTypes = []any{
 	(FinishReason)(0), // 0: mini_llm_serve.v1.FinishReason
-	(*Usage)(nil),     // 1: mini_llm_serve.v1.Usage
-	(*Timing)(nil),    // 2: mini_llm_serve.v1.Timing
-	(*BatchInfo)(nil), // 3: mini_llm_serve.v1.BatchInfo
+	(WorkPhase)(0),    // 1: mini_llm_serve.v1.WorkPhase
+	(EventType)(0),    // 2: mini_llm_serve.v1.EventType
+	(*Usage)(nil),     // 3: mini_llm_serve.v1.Usage
+	(*Timing)(nil),    // 4: mini_llm_serve.v1.Timing
+	(*BatchInfo)(nil), // 5: mini_llm_serve.v1.BatchInfo
 }
 var file_mini_llm_serve_v1_core_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -322,7 +438,7 @@ func file_mini_llm_serve_v1_core_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mini_llm_serve_v1_core_proto_rawDesc), len(file_mini_llm_serve_v1_core_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      3,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,

@@ -14,11 +14,31 @@ class FinishReason(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FINISH_REASON_LENGTH: _ClassVar[FinishReason]
     FINISH_REASON_TIMEOUT: _ClassVar[FinishReason]
     FINISH_REASON_ERROR: _ClassVar[FinishReason]
+
+class WorkPhase(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    WORK_PHASE_PREFILL: _ClassVar[WorkPhase]
+    WORK_PHASE_DECODE: _ClassVar[WorkPhase]
+
+class EventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    EVENT_TYPE_PREFILL_FINISHED: _ClassVar[EventType]
+    EVENT_TYPE_DECODE_CHUNK: _ClassVar[EventType]
+    EVENT_TYPE_REQUEST_FINISHED: _ClassVar[EventType]
+    EVENT_TYPE_REQUEST_FAILED: _ClassVar[EventType]
+    EVENT_TYPE_REQUEST_CANCELED: _ClassVar[EventType]
 FINISH_REASON_UNSPECIFIED: FinishReason
 FINISH_REASON_STOP: FinishReason
 FINISH_REASON_LENGTH: FinishReason
 FINISH_REASON_TIMEOUT: FinishReason
 FINISH_REASON_ERROR: FinishReason
+WORK_PHASE_PREFILL: WorkPhase
+WORK_PHASE_DECODE: WorkPhase
+EVENT_TYPE_PREFILL_FINISHED: EventType
+EVENT_TYPE_DECODE_CHUNK: EventType
+EVENT_TYPE_REQUEST_FINISHED: EventType
+EVENT_TYPE_REQUEST_FAILED: EventType
+EVENT_TYPE_REQUEST_CANCELED: EventType
 
 class Usage(_message.Message):
     __slots__ = ("input_tokens", "output_tokens", "total_tokens")

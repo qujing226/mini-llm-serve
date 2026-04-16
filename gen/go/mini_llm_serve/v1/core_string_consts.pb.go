@@ -13,3 +13,14 @@ const FinishReasonStopStr = "FR_STOP"
 const FinishReasonLengthStr = "FR_LENGTH"
 const FinishReasonTimeoutStr = "FR_TIMEOUT"
 const FinishReasonErrorStr = "FR_ERROR"
+
+// String constants for enum mini_llm_serve.v1.WorkPhase
+const WorkPhasePrefillStr = "WR_PREFILL"
+const WorkPhaseDecodeStr = "WR_DECODE"
+
+// String constants for enum mini_llm_serve.v1.EventType
+const EventTypePrefillFinishedStr = "ET_PREFILL_FINISHED"
+const EventTypeDecodeChunkStr = "ET_DECODE_CHUNK"
+const EventTypeRequestFinishedStr = "ET_REQUEST_FINISHED"
+const EventTypeRequestFailedStr = "ET_REQUEST_FAILED"
+const EventTypeRequestCanceledStr = "ET_REQUEST_CANCELED"

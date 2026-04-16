@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -17,6 +16,7 @@ import (
 	"github.com/qujing226/mini-llm-serve/internal/handler"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
+	"github.com/qujing226/mini-llm-serve/internal/utils"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	brotli "go.withmatt.com/connect-brotli"
@@ -57,7 +57,7 @@ func NewLLMServingServer(l *zap.SugaredLogger, serverConf *conf.Conf, e handler.
 
 	h2cHandler := h2c.NewHandler(mux, &http2.Server{})
 
-	port, err := extractPortNumber(serverConf.Server.Address)
+	port, err := utils.ExtractPortNumber(serverConf.Server.Address)
 	if err != nil {
 		panic(err)
 	}
@@ -170,17 +170,7 @@ func (i *inferenceService) Generate(ctx context.Context, request *v1.GenerateReq
 	return resp, nil
 }
 
-func extractPortNumber(addr string) (int, error) {
-	_, p, err := net.SplitHostPort(addr)
-	if err != nil {
-		return 0, err
-	}
-	port, err := strconv.Atoi(p)
-	if err != nil {
-		return 0, err
-	}
-	if port < 1 || port > 65535 {
-		return 0, errors.New("invalid port")
-	}
-	return port, nil
+func (i *inferenceService) GenerateStream(ctx context.Context, request *v1.GenerateRequest, c *connect.ServerStream[v1.GenerateResponseChunk]) error {
+	//TODO implement me
+	panic("implement me")
 }

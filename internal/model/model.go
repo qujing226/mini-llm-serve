@@ -6,6 +6,34 @@ import (
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 )
 
+type Request struct {
+	RequestId string
+	Model     string
+	Prompt    string
+	MaxTokens uint32
+	Timeout   time.Duration
+	Deadline  time.Time
+
+	CacheKey string
+
+	PromptTokens    uint32
+	GeneratedTokens uint32
+	ChunkTokens     uint32
+
+	Phase        RequestPhase
+	FinishReason v1.FinishReason
+
+	OutputText   string
+	CreatedAt    time.Time
+	FirstTokenAt time.Time
+	FinishedAt   time.Time
+
+	Usage Usage
+
+	Labels map[string]string
+}
+
+// GenerateInput stage1: generate request
 type GenerateInput struct {
 	RequestId string
 	Model     string
@@ -15,6 +43,7 @@ type GenerateInput struct {
 	Labels    map[string]string
 }
 
+// GenerateOutput stage1
 type GenerateOutput struct {
 	RequestId    string
 	Output       string
@@ -26,6 +55,40 @@ type GenerateOutput struct {
 	ExecutorId   string
 }
 
+type WorkItem struct {
+	RequestId string
+	WorkId    string
+	Phase     v1.WorkPhase
+
+	PromptTokens        uint32
+	DecodeTokensPlanned uint32
+	BudgetCost          uint32
+
+	CacheHit bool
+
+	EnqueuedAt time.Time
+	ReadyAt    time.Time
+}
+
+type Event struct {
+	RequestId  string
+	BatchId    string
+	ExecutorId string
+
+	Type v1.EventType
+
+	ChunkIndex uint32
+	DeltaText  string
+	Done       bool
+
+	Usage        Usage
+	FinishReason v1.FinishReason
+
+	At  time.Time
+	Err error
+}
+
+// Task stage1
 type Task struct {
 	TaskId     string
 	RequestId  string

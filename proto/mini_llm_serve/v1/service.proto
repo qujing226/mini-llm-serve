@@ -6,7 +6,7 @@ import "mini_llm_serve/v1/core.proto";
 
 service InferenceService {
   rpc Generate(GenerateRequest) returns (GenerateResponse);
-//  rpc Generate(GenerateRequest) returns (stream GenerateResponseChunk);
+  rpc GenerateStream(GenerateRequest) returns (stream GenerateResponseChunk);
 }
 
 service AdminService{
@@ -20,6 +20,7 @@ message GenerateRequest{
   string prompt = 3;
   uint32 max_tokens = 4; // mock inference can determine sleep time, output_length by this.
   uint32 timeout_ms = 5;
+  string cache_key = 6;
   map<string, string> labels = 10;
 }
 
@@ -33,11 +34,10 @@ message GenerateResponse{
   string executor_id = 7;
 }
 
-
 message GenerateResponseChunk {
   string request_id = 1;
   uint32 index = 2;
-  string delta_text =3 ;
+  string delta_text = 3;
   bool done = 4;
   FinishReason finish_reason = 5;
   Usage usage = 6;

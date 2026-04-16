@@ -20,6 +20,9 @@ class InferenceService(Protocol):
     async def generate(self, request: mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest, ctx: RequestContext) -> mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
 
+    def generate_stream(self, request: mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest, ctx: RequestContext) -> AsyncIterator[mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponseChunk]:
+        raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
+
 
 class InferenceServiceASGIApplication(ConnectASGIApplication[InferenceService]):
     def __init__(self, service: InferenceService | AsyncGenerator[InferenceService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
@@ -35,6 +38,16 @@ class InferenceServiceASGIApplication(ConnectASGIApplication[InferenceService]):
                         idempotency_level=IdempotencyLevel.UNKNOWN,
                     ),
                     function=svc.generate,
+                ),
+                "/mini_llm_serve.v1.InferenceService/GenerateStream": Endpoint.server_stream(
+                    method=MethodInfo(
+                        name="GenerateStream",
+                        service_name="mini_llm_serve.v1.InferenceService",
+                        input=mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest,
+                        output=mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponseChunk,
+                        idempotency_level=IdempotencyLevel.UNKNOWN,
+                    ),
+                    function=svc.generate_stream,
                 ),
             },
             interceptors=interceptors,
@@ -63,6 +76,26 @@ class InferenceServiceClient(ConnectClient):
                 service_name="mini_llm_serve.v1.InferenceService",
                 input=mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest,
                 output=mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponse,
+                idempotency_level=IdempotencyLevel.UNKNOWN,
+            ),
+            headers=headers,
+            timeout_ms=timeout_ms,
+        )
+
+    def generate_stream(
+        self,
+        request: mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest,
+        *,
+        headers: Headers | Mapping[str, str] | None = None,
+        timeout_ms: int | None = None,
+    ) -> AsyncIterator[mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponseChunk]:
+        return self.execute_server_stream(
+            request=request,
+            method=MethodInfo(
+                name="GenerateStream",
+                service_name="mini_llm_serve.v1.InferenceService",
+                input=mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest,
+                output=mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponseChunk,
                 idempotency_level=IdempotencyLevel.UNKNOWN,
             ),
             headers=headers,
@@ -161,6 +194,8 @@ class AdminServiceClient(ConnectClient):
 class InferenceServiceSync(Protocol):
     def generate(self, request: mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest, ctx: RequestContext) -> mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
+    def generate_stream(self, request: mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest, ctx: RequestContext) -> Iterator[mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponseChunk]:
+        raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
 
 
 class InferenceServiceWSGIApplication(ConnectWSGIApplication):
@@ -176,6 +211,16 @@ class InferenceServiceWSGIApplication(ConnectWSGIApplication):
                         idempotency_level=IdempotencyLevel.UNKNOWN,
                     ),
                     function=service.generate,
+                ),
+                "/mini_llm_serve.v1.InferenceService/GenerateStream": EndpointSync.server_stream(
+                    method=MethodInfo(
+                        name="GenerateStream",
+                        service_name="mini_llm_serve.v1.InferenceService",
+                        input=mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest,
+                        output=mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponseChunk,
+                        idempotency_level=IdempotencyLevel.UNKNOWN,
+                    ),
+                    function=service.generate_stream,
                 ),
             },
             interceptors=interceptors,
@@ -204,6 +249,26 @@ class InferenceServiceClientSync(ConnectClientSync):
                 service_name="mini_llm_serve.v1.InferenceService",
                 input=mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest,
                 output=mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponse,
+                idempotency_level=IdempotencyLevel.UNKNOWN,
+            ),
+            headers=headers,
+            timeout_ms=timeout_ms,
+        )
+
+    def generate_stream(
+        self,
+        request: mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest,
+        *,
+        headers: Headers | Mapping[str, str] | None = None,
+        timeout_ms: int | None = None,
+    ) -> Iterator[mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponseChunk]:
+        return self.execute_server_stream(
+            request=request,
+            method=MethodInfo(
+                name="GenerateStream",
+                service_name="mini_llm_serve.v1.InferenceService",
+                input=mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest,
+                output=mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponseChunk,
                 idempotency_level=IdempotencyLevel.UNKNOWN,
             ),
             headers=headers,

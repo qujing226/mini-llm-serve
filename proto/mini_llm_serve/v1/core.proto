@@ -21,6 +21,35 @@ enum FinishReason {
   FINISH_REASON_ERROR = 4;
 }
 
+enum WorkPhase {
+  option (daotl.gen_go_enums.name_pascal_case) = true;
+  option (daotl.gen_go_enums.strip_name_prefix) = "WorkPhase_";
+  option (daotl.gen_go_string_consts.enabled) = true;
+  option (daotl.gen_go_string_consts.strip_name_prefix) = "WorkPhase_";
+  option (daotl.gen_go_string_consts.name_pascal_case) = true;
+  option (daotl.gen_go_string_consts.name_suffix) = "Str";
+  option (daotl.gen_go_string_consts.strip_value_prefix) = "WORK_PHASE_";
+  option (daotl.gen_go_string_consts.value_prefix) = "WR_";
+  WORK_PHASE_PREFILL = 0;
+  WORK_PHASE_DECODE = 1;
+}
+
+enum EventType {
+  option (daotl.gen_go_enums.name_pascal_case) = true;
+  option (daotl.gen_go_enums.strip_name_prefix) = "EventType_";
+  option (daotl.gen_go_string_consts.enabled) = true;
+  option (daotl.gen_go_string_consts.strip_name_prefix) = "EventType_";
+  option (daotl.gen_go_string_consts.name_pascal_case) = true;
+  option (daotl.gen_go_string_consts.name_suffix) = "Str";
+  option (daotl.gen_go_string_consts.strip_value_prefix) = "EVENT_TYPE_";
+  option (daotl.gen_go_string_consts.value_prefix) = "ET_";
+  EVENT_TYPE_PREFILL_FINISHED = 0;
+  EVENT_TYPE_DECODE_CHUNK = 1;
+  EVENT_TYPE_REQUEST_FINISHED = 2;
+  EVENT_TYPE_REQUEST_FAILED = 3;
+  EVENT_TYPE_REQUEST_CANCELED = 4;
+}
+
 message Usage {
   uint32 input_tokens = 1;
   uint32 output_tokens = 2;
