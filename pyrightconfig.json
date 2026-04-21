@@ -1,0 +1,10 @@
+{
+  "include": [
+    "llm_serve",
+    "scripts"
+  ],
+  "ignore": [
+    "llm_serve/vendor"
+  ]
+}
+

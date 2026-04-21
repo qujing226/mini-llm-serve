@@ -66,6 +66,6 @@ labels = [line.get_label() for line in handles]
 ax1.legend(handles, labels, loc="upper left", frameon=True)
 
 fig.tight_layout()
-fig.savefig(output, format="svg", bbox_inches="tight")
+fig.savefig(str(output), format="svg", bbox_inches="tight")
 print(f"saved to {output}")
 
