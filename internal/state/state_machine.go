@@ -1,0 +1,190 @@
+package state
+
+import (
+	"sync"
+	"time"
+
+	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/mini-llm-serve/internal/errors"
+	"github.com/qujing226/mini-llm-serve/internal/model"
+	"github.com/qujing226/mini-llm-serve/internal/utils"
+	"go.uber.org/zap"
+)
+
+type RequestLifecycleStateManager interface {
+	Create(req *model.Request) (*model.WorkItem, error)
+	Get(requestId string) (*model.Request, error)
+	Cancel(requestId string)
+	OnEvent(e *model.Event) ([]*model.WorkItem, error)
+	Subscribe(requestId string) (<-chan *model.Event, error)
+	Finish(requestId string)
+}
+
+type requestLifecycleStateManager struct {
+	l           *zap.SugaredLogger
+	requests    map[string]*model.Request
+	subscribeCh map[string]chan *model.Event
+	mu          sync.RWMutex
+}
+
+func NewRequestLifecycleStateManager(l *zap.SugaredLogger) RequestLifecycleStateManager {
+	r := &requestLifecycleStateManager{
+		l:           l,
+		requests:    make(map[string]*model.Request),
+		subscribeCh: make(map[string]chan *model.Event),
+	}
+	return r
+}
+
+func (r *requestLifecycleStateManager) Create(req *model.Request) (*model.WorkItem, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.requests[req.RequestId]; exists {
+		return nil, errors.New(errors.CodeInvalidArgument, "request already exists")
+	}
+	r.requests[req.RequestId] = req
+	req.Phase = model.RequestPhasePrefillReady
+
+	r.subscribeCh[req.RequestId] = make(chan *model.Event, 5)
+
+	now := time.Now()
+	workItem := &model.WorkItem{
+		WorkId:              utils.MustGenerateUUIDv7(),
+		RequestId:           req.RequestId,
+		Phase:               v1.WorkPhasePrefill,
+		Model:               req.Model,
+		Prompt:              req.Prompt,
+		MaxTokens:           req.MaxTokens,
+		Deadline:            req.Deadline,
+		PromptTokens:        req.PromptTokens,
+		DecodeTokensPlanned: 0,
+		BudgetCost:          req.PromptTokens,
+		CacheHit:            false,
+		ReadyAt:             now,
+	}
+	return workItem, nil
+}
+
+func (r *requestLifecycleStateManager) Get(requestId string) (*model.Request, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if req, exists := r.requests[requestId]; exists {
+		return req, nil
+	}
+	return nil, errors.New(errors.CodeInvalidArgument, "request already exists")
+}
+
+func (r *requestLifecycleStateManager) Cancel(requestId string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if req, exists := r.requests[requestId]; exists {
+		req.Phase = model.RequestPhaseCanceled
+		delete(r.requests, requestId)
+	}
+	if _, exists := r.subscribeCh[requestId]; exists {
+		delete(r.subscribeCh, requestId)
+	}
+}
+
+func (r *requestLifecycleStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error) {
+	r.mu.Lock()
+	req, exists := r.requests[e.RequestId]
+	if !exists {
+		r.mu.Unlock()
+		return nil, errors.New(errors.CodeInternal, "request does not exist")
+	}
+
+	var onWorkItems []*model.WorkItem
+	now := time.Now()
+	switch e.Type {
+	case v1.EventTypePrefillFinished:
+		req.Phase = model.RequestPhaseDecodeReady
+		decodeItem := &model.WorkItem{
+			WorkId:              utils.MustGenerateUUIDv7(),
+			RequestId:           e.RequestId,
+			Phase:               v1.WorkPhaseDecode,
+			Model:               req.Model,
+			Prompt:              req.Prompt,
+			MaxTokens:           req.MaxTokens,
+			Deadline:            req.Deadline,
+			PromptTokens:        req.PromptTokens,
+			DecodeTokensPlanned: 0,
+			BudgetCost:          e.Usage.InputTokens,
+			CacheHit:            false,
+			ReadyAt:             now,
+		}
+		onWorkItems = append(onWorkItems, decodeItem)
+	case v1.EventTypeDecodeChunk:
+		req.Usage = e.Usage
+		req.OutputText += e.DeltaText
+		// todo: GeneratedTokens = e.Usage.OutputTokens 假设 executor 返回的是累计值。这个后面要和 Python/mock 或真实 backend 的 usage 语义对齐。现在先接受。
+		req.GeneratedTokens = e.Usage.OutputTokens
+		if e.Done {
+			req.Phase = model.RequestPhaseFinished
+			req.FinishedAt = now
+			req.FinishReason = e.FinishReason
+			// todo：决定清理请求/通知订阅者
+		} else {
+			req.Phase = model.RequestPhaseDecodeReady
+			decodeItem := &model.WorkItem{
+				WorkId:              utils.MustGenerateUUIDv7(),
+				RequestId:           e.RequestId,
+				Phase:               v1.WorkPhaseDecode,
+				Model:               req.Model,
+				Prompt:              req.Prompt,
+				MaxTokens:           req.MaxTokens,
+				Deadline:            req.Deadline,
+				PromptTokens:        req.PromptTokens,
+				DecodeTokensPlanned: 0,
+				BudgetCost:          e.Usage.InputTokens,
+				CacheHit:            false,
+				ReadyAt:             now,
+			}
+			onWorkItems = append(onWorkItems, decodeItem)
+		}
+
+	case v1.EventTypeRequestFinished:
+		req.Phase = model.RequestPhaseFinished
+	case v1.EventTypeRequestFailed:
+		req.Phase = model.RequestPhaseFailed
+	case v1.EventTypeRequestCanceled:
+		req.Phase = model.RequestPhaseCanceled
+	}
+
+	r.mu.Unlock()
+
+	// publish event
+	r.mu.RLock()
+	subCh, exists := r.subscribeCh[e.RequestId]
+	r.mu.RUnlock()
+	if exists {
+		// todo: subCh <- e 仍然可能阻塞。后面如果流式消费者慢，状态机会被拖住。现在先不动。
+		subCh <- e
+	} else {
+		r.l.Errorf("request %s not subscribed", e.RequestId)
+	}
+
+	return onWorkItems, nil
+}
+
+func (r *requestLifecycleStateManager) Subscribe(requestId string) (<-chan *model.Event, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	ch, exists := r.subscribeCh[requestId]
+	if !exists {
+		return nil, errors.New(errors.CodeInternal, "subscribe channel doesn't exist")
+	}
+	return ch, nil
+}
+
+func (r *requestLifecycleStateManager) Finish(requestId string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if req, exists := r.requests[requestId]; exists {
+		req.Phase = model.RequestPhaseFinished
+		delete(r.requests, requestId)
+	}
+	if _, exists := r.subscribeCh[requestId]; exists {
+		delete(r.subscribeCh, requestId)
+	}
+}

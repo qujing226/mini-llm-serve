@@ -10,7 +10,7 @@ import (
 )
 
 type lockFreeQueue struct {
-	buf  []*model.Task
+	buf  []*model.WorkItem
 	size uint64
 	//seq  atomic.Uint64
 
@@ -33,13 +33,13 @@ func NewLockFreeQueue(cfg *conf.Conf) Queue {
 	}
 	q := &lockFreeQueue{
 		size:  length,
-		buf:   make([]*model.Task, length),
+		buf:   make([]*model.WorkItem, length),
 		round: cfg.Server.QueueRoundInterval(),
 	}
 	return q
 }
 
-func (q *lockFreeQueue) Enqueue(task *model.Task) error {
+func (q *lockFreeQueue) Enqueue(task *model.WorkItem) error {
 	if q.AvailableSpace() == 0 {
 		return errors.New("lockFreeQueue is full")
 	}
@@ -49,12 +49,12 @@ func (q *lockFreeQueue) Enqueue(task *model.Task) error {
 	return nil
 }
 
-func (q *lockFreeQueue) Dequeue(n uint64) ([]*model.Task, error) {
+func (q *lockFreeQueue) Dequeue(n uint64) ([]*model.WorkItem, error) {
 	remainTasks := q.writePos.Load() - q.reclaimPos.Load()
 	if remainTasks < n {
 		n = remainTasks
 	}
-	var taskList []*model.Task
+	var taskList []*model.WorkItem
 	pos := q.reclaimPos.Load() & (q.size - 1)
 	if pos+n > q.size-1 {
 		taskList = append(taskList, q.buf[pos:]...)

@@ -3,15 +3,17 @@ package worker
 import (
 	"context"
 	"sync/atomic"
+	"time"
 
+	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"go.uber.org/zap"
 )
 
 type Worker interface {
-	Batch(ctx context.Context, batch *model.Batch) ([]*model.TaskResult, error)
-	One(ctx context.Context, task *model.Task) (*model.TaskResult, error)
+	Batch(ctx context.Context, batch *model.Batch) ([]*model.Event, error)
+	One(ctx context.Context, work *model.WorkItem) (*model.Event, error)
 }
 
 type work struct {
@@ -45,7 +47,7 @@ func NewWorker(logger *zap.SugaredLogger, executors map[string]Executor, metrics
 	return e
 }
 
-func (e *work) Batch(ctx context.Context, batch *model.Batch) ([]*model.TaskResult, error) {
+func (e *work) Batch(ctx context.Context, batch *model.Batch) ([]*model.Event, error) {
 	executorId := e.executorList[e.idx.Load()%e.executorNum]
 	executor := e.executors[executorId]
 	e.idx.Add(1)
@@ -60,27 +62,29 @@ func (e *work) Batch(ctx context.Context, batch *model.Batch) ([]*model.TaskResu
 	return resp, nil
 }
 
-func (e *work) One(ctx context.Context, task *model.Task) (*model.TaskResult, error) {
-	return &model.TaskResult{
-		TaskId:        task.TaskId,
-		RequestId:     task.RequestId,
-		ExecutorId:    "",
-		Output:        "",
-		FinishReason:  0,
-		ExecutionTime: 0,
-		Usage:         model.Usage{},
-		Error:         nil,
-		BatchID:       "",
-		Timing:        model.Timing{},
+func (e *work) One(ctx context.Context, work *model.WorkItem) (*model.Event, error) {
+	return &model.Event{
+		WorkId:     work.WorkId,
+		RequestId:  work.RequestId,
+		ExecutorId: "",
+		BatchId:    "",
+
+		Type: v1.EventTypeDecodeChunk,
+
+		DeltaText:    "",
+		FinishReason: 0,
+		Usage:        model.Usage{},
+		Err:          nil,
+		At:           time.Now(),
 	}, nil
 	//var ec *http.Client
-	//if time.Now().Sub(task.DeadLine) > time.Second {
+	//if time.Now().Sub(work.DeadLine) > time.Second {
 	//	ec = e.executors["deepseek"]
 	//} else {
 	//	ec = e.executors["openai"]
 	//}
 
-	//res, err := ec.Post("http://127.0.0.1:9991/deepseek", "application/json", io.Writer(task.Prompt))
+	//res, err := ec.Post("http://127.0.0.1:9991/deepseek", "application/json", io.Writer(work.Prompt))
 	//if err != nil {
 	//	return nil, err
 	//}

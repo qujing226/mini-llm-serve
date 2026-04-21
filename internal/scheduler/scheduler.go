@@ -9,24 +9,25 @@ import (
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
+	"github.com/qujing226/mini-llm-serve/internal/state"
 	"github.com/qujing226/mini-llm-serve/internal/utils"
 	"github.com/qujing226/mini-llm-serve/internal/worker"
 	"go.uber.org/zap"
 )
 
 type Scheduler interface {
-	Enqueue(input *model.GenerateInput) (chan *model.GenerateOutput, error)
+	Enqueue(input *model.WorkItem) error
 	Batch(ctx context.Context)
-	ExecuteNow(ctx context.Context, input *model.GenerateInput) (*model.GenerateOutput, error)
-	Cancel(requestId string)
+	ExecuteNow(ctx context.Context, input *model.WorkItem) error
 }
 
 type scheduler struct {
 	l *zap.SugaredLogger
 
-	queue     Queue
-	worker    worker.Worker
-	batchSize uint64
+	queue          Queue
+	requestManager state.RequestLifecycleStateManager
+	worker         worker.Worker
+	batchSize      uint64
 
 	queueLength      atomic.Uint64
 	inflightRequests atomic.Uint64
@@ -34,23 +35,20 @@ type scheduler struct {
 
 	ticker *time.Ticker
 
-	receiveChan      chan *model.GenerateOutput
-	dispatchMap      map[string]chan *model.GenerateOutput
 	patchExecuteChan chan struct{}
 
 	mu      sync.RWMutex
 	metrics metrics.Metrics
 }
 
-func NewScheduler(cfg *conf.Conf, q Queue, worker worker.Worker, l *zap.SugaredLogger, metrics metrics.Metrics) Scheduler {
+func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, q Queue, worker worker.Worker, r state.RequestLifecycleStateManager, metrics metrics.Metrics) Scheduler {
 	s := &scheduler{
 		l:                l,
 		queue:            q,
 		worker:           worker,
+		requestManager:   r,
 		batchSize:        cfg.Server.BatchSize,
 		ticker:           time.NewTicker(cfg.Server.BatchRoundInterval()),
-		receiveChan:      make(chan *model.GenerateOutput, cfg.Server.BatchSize),
-		dispatchMap:      make(map[string]chan *model.GenerateOutput, cfg.Server.BatchSize*3),
 		patchExecuteChan: make(chan struct{}, 1),
 
 		metrics: metrics,
@@ -58,24 +56,15 @@ func NewScheduler(cfg *conf.Conf, q Queue, worker worker.Worker, l *zap.SugaredL
 	return s
 }
 
-func (s *scheduler) Enqueue(input *model.GenerateInput) (chan *model.GenerateOutput, error) {
+func (s *scheduler) Enqueue(input *model.WorkItem) error {
 	// metrics: set inflight requests
 	s.metrics.SetInflightRequests(int(s.inflightRequests.Add(1)))
-	task, err := DomainToTask(input)
-	if err != nil {
-		return nil, err
-	}
 
-	s.mu.Lock()
-	resCh := make(chan *model.GenerateOutput, 1)
-	s.dispatchMap[input.RequestId] = resCh
-	s.mu.Unlock()
-	err = s.queue.Enqueue(task)
+	err := s.queue.Enqueue(input)
 	if err != nil {
 		// metrics: injected request
 		s.metrics.IncQueueRejected()
-		s.Cancel(input.RequestId)
-		return nil, err
+		return err
 	}
 
 	// metrics: queue queueLength
@@ -85,21 +74,22 @@ func (s *scheduler) Enqueue(input *model.GenerateInput) (chan *model.GenerateOut
 	if s.queueLength.CompareAndSwap(s.batchSize, 0) {
 		s.patchExecuteChan <- struct{}{}
 	}
-	return resCh, nil
+	return nil
 }
 
-func (s *scheduler) ExecuteNow(ctx context.Context, input *model.GenerateInput) (*model.GenerateOutput, error) {
-	task, err := DomainToTask(input)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := s.worker.One(ctx, task)
-	if err != nil {
-		return nil, err
-	}
-
-	return TaskToDomain(res), nil
+func (s *scheduler) ExecuteNow(ctx context.Context, input *model.WorkItem) error {
+	panic("implement me")
+	//task, err := WorkItemToTask(input)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//res, err := s.worker.One(ctx, task)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//return TaskToDomain(res), nil
 }
 
 func (s *scheduler) Batch(ctx context.Context) {
@@ -115,16 +105,6 @@ func (s *scheduler) Batch(ctx context.Context) {
 			s.patchExecute(ctx)
 		}
 	}
-}
-
-func (s *scheduler) Cancel(requestId string) {
-	s.mu.Lock()
-	if _, exist := s.dispatchMap[requestId]; exist {
-		delete(s.dispatchMap, requestId)
-		// metrics: reduce inflight request
-		s.metrics.SetInflightRequests(int(s.inflightRequests.Add(^uint64(0))))
-	}
-	s.mu.Unlock()
 }
 
 func (s *scheduler) patchExecute(ctx context.Context) {
@@ -152,11 +132,11 @@ func (s *scheduler) patchExecute(ctx context.Context) {
 				s.metrics.ObserveQueueWait(batchCreateAt.Sub(task.EnqueuedAt).Seconds())
 			}
 
-			taskResList, err := s.worker.Batch(ctx, &model.Batch{
+			eventList, err := s.worker.Batch(ctx, &model.Batch{
 				BatchID:   bid,
 				BatchSize: uint64(len(tasks)),
 				CreateAt:  batchCreateAt,
-				Tasks:     tasks,
+				Items:     tasks,
 			})
 
 			s.metrics.SetInflightBatches(int(s.inflightBatches.Add(^uint64(0))))
@@ -164,11 +144,17 @@ func (s *scheduler) patchExecute(ctx context.Context) {
 			if err != nil {
 				s.l.Errorf("failed to execute batch: %v", err)
 			}
-			for _, taskRes := range taskResList {
-				output := TaskToDomain(taskRes)
-				s.receiveChan <- output
+			for _, event := range eventList {
+				nextItems, err := s.requestManager.OnEvent(event)
+				if err != nil {
+					s.l.Errorf("failed to execute event: %v", err)
+				}
+				for _, nextItem := range nextItems {
+					err = s.queue.Enqueue(nextItem)
+				}
+
 				// metrics: observe every task execution cost and executorId
-				s.metrics.ObserveExecution(taskRes.ExecutionTime.Seconds(), taskRes.ExecutorId)
+				s.metrics.ObserveExecution(event.Timing.Execution.Seconds(), event.ExecutorId)
 			}
 		}()
 	}
@@ -181,16 +167,6 @@ func (s *scheduler) dispatch(ctx context.Context) {
 		case <-ctx.Done():
 			s.l.Info("context canceled")
 			return
-		case res := <-s.receiveChan:
-			s.mu.Lock()
-			if ch, exist := s.dispatchMap[res.RequestId]; exist {
-				ch <- res
-				delete(s.dispatchMap, res.RequestId)
-				// metrics: reduce inflight request
-				s.metrics.SetInflightRequests(int(s.inflightRequests.Add(^uint64(0))))
-			}
-			s.mu.Unlock()
-
 		}
 	}
 }

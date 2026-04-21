@@ -171,6 +171,43 @@ func (i *inferenceService) Generate(ctx context.Context, request *v1.GenerateReq
 }
 
 func (i *inferenceService) GenerateStream(ctx context.Context, request *v1.GenerateRequest, c *connect.ServerStream[v1.GenerateResponseChunk]) error {
-	//TODO implement me
-	panic("implement me")
+	var (
+		status           = "ok"
+		executorId       = "unknown"
+		requestStartTime = time.Now()
+	)
+	defer func() {
+		requestEndTime := time.Now()
+		i.metrics.ObserveRequestDuration(requestEndTime.Sub(requestStartTime).Seconds())
+		i.metrics.IncRequest(status, executorId)
+	}()
+
+	req, err := model.ProtoMsgToModel(request)
+	if err != nil {
+		status = string(appErrors.CodeOf(err))
+		return appErrors.ToConnectError(err)
+	}
+	ch, err := i.InferenceHandler.GenerateStream(ctx, req)
+	if err != nil {
+		status = string(appErrors.CodeOf(err))
+		return appErrors.ToConnectError(err)
+	}
+	for {
+		select {
+		case msg := <-ch:
+			resp, transferErr := model.ModelToProtoMsgStream(msg)
+			if transferErr != nil {
+				status = string(appErrors.CodeOf(transferErr))
+				return appErrors.ToConnectError(transferErr)
+			}
+			sendErr := c.Send(resp)
+			if sendErr != nil {
+				status = string(appErrors.CodeOf(sendErr))
+				return appErrors.ToConnectError(sendErr)
+			}
+		case <-ctx.Done():
+			status = string(appErrors.CodeOf(ctx.Err()))
+			return appErrors.ToConnectError(ctx.Err())
+		}
+	}
 }

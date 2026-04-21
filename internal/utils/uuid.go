@@ -27,6 +27,14 @@ func GenerateUUIDv7() (string, error) {
 	return formatUUID(u), nil
 }
 
+func MustGenerateUUIDv7() string {
+	str, err := GenerateUUIDv7()
+	if err != nil {
+		return time.Now().Format("2006-01-02 15:04:05")
+	}
+	return str
+}
+
 func formatUUID(u [16]byte) string {
 	var buf [36]byte
 	hex.Encode(buf[0:8], u[0:4])

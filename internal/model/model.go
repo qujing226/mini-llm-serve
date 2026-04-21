@@ -33,16 +33,6 @@ type Request struct {
 	Labels map[string]string
 }
 
-// GenerateInput stage1: generate request
-type GenerateInput struct {
-	RequestId string
-	Model     string
-	Prompt    string
-	MaxTokens uint32
-	Timeout   time.Duration
-	Labels    map[string]string
-}
-
 // GenerateOutput stage1
 type GenerateOutput struct {
 	RequestId    string
@@ -56,9 +46,14 @@ type GenerateOutput struct {
 }
 
 type WorkItem struct {
-	RequestId string
 	WorkId    string
+	RequestId string
 	Phase     v1.WorkPhase
+
+	Model     string
+	Prompt    string
+	MaxTokens uint32
+	Deadline  time.Time
 
 	PromptTokens        uint32
 	DecodeTokensPlanned uint32
@@ -71,6 +66,7 @@ type WorkItem struct {
 }
 
 type Event struct {
+	WorkId     string
 	RequestId  string
 	BatchId    string
 	ExecutorId string
@@ -82,46 +78,18 @@ type Event struct {
 	Done       bool
 
 	Usage        Usage
+	Timing       Timing
 	FinishReason v1.FinishReason
 
 	At  time.Time
 	Err error
 }
 
-// Task stage1
-type Task struct {
-	TaskId     string
-	RequestId  string
-	Model      string
-	Prompt     string
-	MaxTokens  uint32
-	Labels     map[string]string
-	EnqueuedAt time.Time
-	DeadLine   time.Time
-	ResultCh   chan *TaskResult
-}
-
-type TaskResult struct {
-	TaskId     string
-	RequestId  string
-	ExecutorId string
-
-	Output string
-
-	FinishReason  v1.FinishReason
-	ExecutionTime time.Duration
-	Usage         Usage
-
-	Error   error
-	BatchID string
-	Timing  Timing
-}
-
 type Batch struct {
 	BatchID   string
 	BatchSize uint64
 	CreateAt  time.Time
-	Tasks     []*Task
+	Items     []*WorkItem
 }
 
 type RuntimeStats struct {

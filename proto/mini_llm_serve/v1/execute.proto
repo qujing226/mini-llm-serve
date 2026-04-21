@@ -14,10 +14,12 @@ message ExecuteBatchRequest{
 }
 
 message ExecuteItem {
-  string task_id = 1;
+  string work_id = 1;
   string request_id = 2;
-  string prompt = 3;
-  uint32 max_tokens = 4;
+  WorkPhase phase = 3;
+  string prompt = 4;
+  uint32 max_tokens = 5;
+  uint32 decode_tokens_planned = 6;
 }
 
 message ExecuteBatchResponse{
@@ -27,12 +29,13 @@ message ExecuteBatchResponse{
 }
 
 message ExecuteResult{
-  string task_id = 1;
+  string work_id = 1;
   string request_id =2;
   string output_text = 3;
-  FinishReason finish_reason = 4;
-  uint32 input_tokens = 5;
-  uint32 output_tokens = 6;
-  uint32 execution_ms = 7;
-  string error_message = 8;
+  bool done = 4;
+  FinishReason finish_reason = 5;
+  uint32 input_tokens = 6;
+  uint32 output_tokens = 7;
+  uint32 execution_ms = 8;
+  string error_message = 9;
 }

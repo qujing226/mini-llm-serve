@@ -10,15 +10,15 @@ import (
 )
 
 type Queue interface {
-	Enqueue(t *model.Task) error
-	Dequeue(n uint64) ([]*model.Task, error)
+	Enqueue(t *model.WorkItem) error
+	Dequeue(n uint64) ([]*model.WorkItem, error)
 	Length() uint64
 	AvailableSpace() uint64
 }
 
 type queue struct {
 	mu    sync.Mutex
-	tasks []*model.Task
+	tasks []*model.WorkItem
 	size  uint64
 	round time.Duration
 }
@@ -30,13 +30,13 @@ func NewQueue(cfg *conf.Conf) Queue {
 	}
 	q := &queue{
 		size:  length,
-		tasks: make([]*model.Task, 0, length),
+		tasks: make([]*model.WorkItem, 0, length),
 		round: cfg.Server.QueueRoundInterval(),
 	}
 	return q
 }
 
-func (q *queue) Enqueue(t *model.Task) error {
+func (q *queue) Enqueue(t *model.WorkItem) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -47,7 +47,7 @@ func (q *queue) Enqueue(t *model.Task) error {
 	return nil
 }
 
-func (q *queue) Dequeue(n uint64) ([]*model.Task, error) {
+func (q *queue) Dequeue(n uint64) ([]*model.WorkItem, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -58,7 +58,7 @@ func (q *queue) Dequeue(n uint64) ([]*model.Task, error) {
 		n = uint64(len(q.tasks))
 	}
 
-	taskList := append([]*model.Task(nil), q.tasks[:n]...)
+	taskList := append([]*model.WorkItem(nil), q.tasks[:n]...)
 	q.tasks = q.tasks[n:]
 	return taskList, nil
 }

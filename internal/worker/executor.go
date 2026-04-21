@@ -13,8 +13,8 @@ import (
 )
 
 type Executor interface {
-	Execute(ctx context.Context, batch *model.Batch) ([]*model.TaskResult, error)
-	ExecuteToBatch(batchId string, resp *v1.ExecuteBatchResponse) ([]*model.TaskResult, error)
+	Execute(ctx context.Context, batch *model.Batch) ([]*model.Event, error)
+	ExecuteToBatch(batchId string, resp *v1.ExecuteBatchResponse) ([]*model.Event, error)
 }
 
 func NewExecutors(cfg *conf.Conf) (map[string]Executor, error) {
@@ -74,7 +74,7 @@ func newPythonExecutor(cfg conf.ExecutorConf) (Executor, error) {
 	return e, nil
 }
 
-func (m *mockExecutor) Execute(ctx context.Context, batch *model.Batch) ([]*model.TaskResult, error) {
+func (m *mockExecutor) Execute(ctx context.Context, batch *model.Batch) ([]*model.Event, error) {
 	resp, err := m.client.ExecuteBatch(ctx, BatchToExecute(batch))
 	if err != nil {
 		return nil, err
@@ -119,27 +119,26 @@ func (m *mockExecutor) ExecuteOne() string {
 	return "mock"
 }
 
-func (m *mockExecutor) ExecuteToBatch(batchId string, resp *v1.ExecuteBatchResponse) ([]*model.TaskResult, error) {
-	var results []*model.TaskResult
+func (m *mockExecutor) ExecuteToBatch(batchId string, resp *v1.ExecuteBatchResponse) ([]*model.Event, error) {
+	var results []*model.Event
 	for _, item := range resp.GetResults() {
 		var err error
 		if item.ErrorMessage != "" {
 			err = errors.New(errors.CodeInternal, item.ErrorMessage)
 		}
-		results = append(results, &model.TaskResult{
-			TaskId:        item.TaskId,
-			RequestId:     item.RequestId,
-			ExecutorId:    m.id,
-			Output:        item.OutputText,
-			FinishReason:  item.FinishReason,
-			ExecutionTime: time.Duration(item.ExecutionMs) * time.Millisecond,
+		results = append(results, &model.Event{
+			WorkId:       item.TaskId,
+			RequestId:    item.RequestId,
+			ExecutorId:   m.id,
+			DeltaText:    item.OutputText,
+			FinishReason: item.FinishReason,
 			Usage: model.Usage{
 				InputTokens:  item.InputTokens,
 				OutputTokens: item.OutputTokens,
 				TotalTokens:  item.InputTokens + item.OutputTokens,
 			},
-			Error:   err,
-			BatchID: batchId,
+			Err:     err,
+			BatchId: batchId,
 			Timing: model.Timing{
 				Queue:     0,
 				BatchWait: 0,
