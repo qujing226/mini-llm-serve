@@ -10,14 +10,15 @@ import (
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/model"
+	"go.uber.org/zap"
 )
 
 type Executor interface {
 	Execute(ctx context.Context, batch *model.Batch) ([]*model.Event, error)
-	ExecuteToBatch(batchId string, resp *v1.ExecuteBatchResponse) ([]*model.Event, error)
+	ExecuteToBatch(batch *model.Batch, resp *v1.ExecuteBatchResponse) ([]*model.Event, error)
 }
 
-func NewExecutors(cfg *conf.Conf) (map[string]Executor, error) {
+func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executor, error) {
 	executors := make(map[string]Executor)
 
 	for _, ec := range cfg.Executors {
@@ -38,7 +39,7 @@ func NewExecutors(cfg *conf.Conf) (map[string]Executor, error) {
 		var err error
 		switch ec.Kind {
 		case "connect":
-			exec, err = newPythonExecutor(ec)
+			exec, err = newPythonExecutor(logger, ec)
 		case "http":
 			exec, err = newHTTPExecutor(ec)
 		default:
@@ -60,13 +61,15 @@ func NewExecutors(cfg *conf.Conf) (map[string]Executor, error) {
 }
 
 type mockExecutor struct {
+	l         *zap.SugaredLogger
 	id        string
 	endpoints []string
 	client    *client.ExecutorClient
 }
 
-func newPythonExecutor(cfg conf.ExecutorConf) (Executor, error) {
+func newPythonExecutor(l *zap.SugaredLogger, cfg conf.ExecutorConf) (Executor, error) {
 	e := &mockExecutor{
+		l:         l,
 		id:        cfg.ID,
 		endpoints: cfg.Address,
 		client:    client.NewExecutorClient(cfg.Address),
@@ -79,7 +82,7 @@ func (m *mockExecutor) Execute(ctx context.Context, batch *model.Batch) ([]*mode
 	if err != nil {
 		return nil, err
 	}
-	result, err := m.ExecuteToBatch(batch.BatchID, resp)
+	result, err := m.ExecuteToBatch(batch, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -119,32 +122,45 @@ func (m *mockExecutor) ExecuteOne() string {
 	return "mock"
 }
 
-func (m *mockExecutor) ExecuteToBatch(batchId string, resp *v1.ExecuteBatchResponse) ([]*model.Event, error) {
+func (m *mockExecutor) ExecuteToBatch(batch *model.Batch, resp *v1.ExecuteBatchResponse) ([]*model.Event, error) {
+	works := make(map[string]*model.WorkItem, len(batch.Items))
+	for _, item := range batch.Items {
+		works[item.WorkId] = item
+	}
+
 	var results []*model.Event
-	for _, item := range resp.GetResults() {
+	for _, workRes := range resp.GetResults() {
+		workItem, exists := works[workRes.GetWorkId()]
+		if !exists {
+			m.l.Errorf("work id %s not found", workRes.GetWorkId())
+			continue
+		}
+
 		var err error
-		if item.ErrorMessage != "" {
-			err = errors.New(errors.CodeInternal, item.ErrorMessage)
+		if workRes.ErrorMessage != "" {
+			err = errors.New(errors.CodeInternal, workRes.ErrorMessage)
 		}
 		results = append(results, &model.Event{
-			WorkId:       item.TaskId,
-			RequestId:    item.RequestId,
-			ExecutorId:   m.id,
-			DeltaText:    item.OutputText,
-			FinishReason: item.FinishReason,
+			WorkId:     workRes.WorkId,
+			RequestId:  workRes.RequestId,
+			BatchId:    batch.BatchID,
+			ExecutorId: m.id,
+			Type:       nextPhase(workItem, err),
+			DeltaText:  workRes.OutputText,
+			Done:       workRes.Done,
 			Usage: model.Usage{
-				InputTokens:  item.InputTokens,
-				OutputTokens: item.OutputTokens,
-				TotalTokens:  item.InputTokens + item.OutputTokens,
+				InputTokens:  workRes.InputTokens,
+				OutputTokens: workRes.OutputTokens,
+				TotalTokens:  workRes.InputTokens + workRes.OutputTokens,
 			},
-			Err:     err,
-			BatchId: batchId,
 			Timing: model.Timing{
 				Queue:     0,
 				BatchWait: 0,
-				Execution: time.Duration(item.ExecutionMs) * time.Millisecond,
+				Execution: time.Duration(workRes.ExecutionMs) * time.Millisecond,
 				Total:     0,
 			},
+			FinishReason: workRes.FinishReason,
+			Err:          err,
 		})
 	}
 
@@ -153,4 +169,18 @@ func (m *mockExecutor) ExecuteToBatch(batchId string, resp *v1.ExecuteBatchRespo
 
 func newHTTPExecutor(cfg conf.ExecutorConf) (Executor, error) {
 	return nil, fmt.Errorf("http executor not implemented")
+}
+
+func nextPhase(item *model.WorkItem, err error) v1.EventType {
+	if err != nil {
+		return v1.EventTypeRequestFailed
+	}
+	if item.Phase == v1.WorkPhasePrefill {
+		return v1.EventTypePrefillFinished
+	}
+	if item.Phase == v1.WorkPhaseDecode {
+		return v1.EventTypeDecodeChunk
+	}
+
+	return v1.EventTypeRequestFinished
 }

@@ -20,34 +20,34 @@ type InferenceHandler interface {
 type inferenceHandler struct {
 	l *zap.SugaredLogger
 
-	Scheduler      scheduler.Scheduler
-	RequestManager state.RequestLifecycleStateManager
+	scheduler      scheduler.Scheduler
+	requestManager state.RequestLifecycleStateManager
 }
 
 func NewInferenceHandle(l *zap.SugaredLogger, s scheduler.Scheduler, r state.RequestLifecycleStateManager) InferenceHandler {
 	e := &inferenceHandler{
 		l:              l,
-		Scheduler:      s,
-		RequestManager: r,
+		scheduler:      s,
+		requestManager: r,
 	}
 	return e
 }
 
 func (e *inferenceHandler) Generate(ctx context.Context, req *model.Request) (*model.GenerateOutput, error) {
-	firstWorkItem, err := e.RequestManager.Create(req)
+	firstWorkItem, err := e.requestManager.Create(req)
 	if err != nil {
 		return nil, err
 	}
 
-	subscribeChan, err := e.RequestManager.Subscribe(req.RequestId)
+	subscribeChan, err := e.requestManager.Subscribe(req.RequestId)
 	if err != nil {
-		e.RequestManager.Cancel(req.RequestId)
+		e.requestManager.Cancel(req.RequestId)
 		return nil, err
 	}
 
-	err = e.Scheduler.Enqueue(firstWorkItem)
+	err = e.scheduler.Enqueue(firstWorkItem)
 	if err != nil {
-		e.RequestManager.Cancel(req.RequestId)
+		e.requestManager.Cancel(req.RequestId)
 		return nil, err
 	}
 	var res string
@@ -56,10 +56,10 @@ func (e *inferenceHandler) Generate(ctx context.Context, req *model.Request) (*m
 		res += event.DeltaText
 
 	case <-ctx.Done():
-		e.Scheduler.Cancel(req.RequestId)
+		e.requestManager.Cancel(req.RequestId)
 		return nil, errors.Wrap(errors.CodeRequestCanceled, "handler.generate", "request canceled", ctx.Err())
 	case <-time.After(req.Timeout):
-		e.Scheduler.Cancel(req.RequestId)
+		e.requestManager.Cancel(req.RequestId)
 		return nil, errors.New(errors.CodeRequestTimeout, "request timeout")
 	}
 

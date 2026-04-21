@@ -74,13 +74,15 @@ func (x *ExecuteBatchRequest) GetItems() []*ExecuteItem {
 }
 
 type ExecuteItem struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	RequestId     string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	Prompt        string                 `protobuf:"bytes,3,opt,name=prompt,proto3" json:"prompt,omitempty"`
-	MaxTokens     uint32                 `protobuf:"varint,4,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	WorkId              string                 `protobuf:"bytes,1,opt,name=work_id,json=workId,proto3" json:"work_id,omitempty"`
+	RequestId           string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Phase               WorkPhase              `protobuf:"varint,3,opt,name=phase,proto3,enum=mini_llm_serve.v1.WorkPhase" json:"phase,omitempty"`
+	Prompt              string                 `protobuf:"bytes,4,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	MaxTokens           uint32                 `protobuf:"varint,5,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	DecodeTokensPlanned uint32                 `protobuf:"varint,6,opt,name=decode_tokens_planned,json=decodeTokensPlanned,proto3" json:"decode_tokens_planned,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ExecuteItem) Reset() {
@@ -113,9 +115,9 @@ func (*ExecuteItem) Descriptor() ([]byte, []int) {
 	return file_mini_llm_serve_v1_execute_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ExecuteItem) GetTaskId() string {
+func (x *ExecuteItem) GetWorkId() string {
 	if x != nil {
-		return x.TaskId
+		return x.WorkId
 	}
 	return ""
 }
@@ -125,6 +127,13 @@ func (x *ExecuteItem) GetRequestId() string {
 		return x.RequestId
 	}
 	return ""
+}
+
+func (x *ExecuteItem) GetPhase() WorkPhase {
+	if x != nil {
+		return x.Phase
+	}
+	return WorkPhase_WORK_PHASE_PREFILL
 }
 
 func (x *ExecuteItem) GetPrompt() string {
@@ -137,6 +146,13 @@ func (x *ExecuteItem) GetPrompt() string {
 func (x *ExecuteItem) GetMaxTokens() uint32 {
 	if x != nil {
 		return x.MaxTokens
+	}
+	return 0
+}
+
+func (x *ExecuteItem) GetDecodeTokensPlanned() uint32 {
+	if x != nil {
+		return x.DecodeTokensPlanned
 	}
 	return 0
 }
@@ -203,14 +219,15 @@ func (x *ExecuteBatchResponse) GetResults() []*ExecuteResult {
 
 type ExecuteResult struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	WorkId        string                 `protobuf:"bytes,1,opt,name=work_id,json=workId,proto3" json:"work_id,omitempty"`
 	RequestId     string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	OutputText    string                 `protobuf:"bytes,3,opt,name=output_text,json=outputText,proto3" json:"output_text,omitempty"`
-	FinishReason  FinishReason           `protobuf:"varint,4,opt,name=finish_reason,json=finishReason,proto3,enum=mini_llm_serve.v1.FinishReason" json:"finish_reason,omitempty"`
-	InputTokens   uint32                 `protobuf:"varint,5,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
-	OutputTokens  uint32                 `protobuf:"varint,6,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
-	ExecutionMs   uint32                 `protobuf:"varint,7,opt,name=execution_ms,json=executionMs,proto3" json:"execution_ms,omitempty"`
-	ErrorMessage  string                 `protobuf:"bytes,8,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	Done          bool                   `protobuf:"varint,4,opt,name=done,proto3" json:"done,omitempty"`
+	FinishReason  FinishReason           `protobuf:"varint,5,opt,name=finish_reason,json=finishReason,proto3,enum=mini_llm_serve.v1.FinishReason" json:"finish_reason,omitempty"`
+	InputTokens   uint32                 `protobuf:"varint,6,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
+	OutputTokens  uint32                 `protobuf:"varint,7,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
+	ExecutionMs   uint32                 `protobuf:"varint,8,opt,name=execution_ms,json=executionMs,proto3" json:"execution_ms,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,9,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -245,9 +262,9 @@ func (*ExecuteResult) Descriptor() ([]byte, []int) {
 	return file_mini_llm_serve_v1_execute_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ExecuteResult) GetTaskId() string {
+func (x *ExecuteResult) GetWorkId() string {
 	if x != nil {
-		return x.TaskId
+		return x.WorkId
 	}
 	return ""
 }
@@ -264,6 +281,13 @@ func (x *ExecuteResult) GetOutputText() string {
 		return x.OutputText
 	}
 	return ""
+}
+
+func (x *ExecuteResult) GetDone() bool {
+	if x != nil {
+		return x.Done
+	}
+	return false
 }
 
 func (x *ExecuteResult) GetFinishReason() FinishReason {
@@ -308,30 +332,33 @@ const file_mini_llm_serve_v1_execute_proto_rawDesc = "" +
 	"\x1fmini_llm_serve/v1/execute.proto\x12\x11mini_llm_serve.v1\x1a\x1cmini_llm_serve/v1/core.proto\"f\n" +
 	"\x13ExecuteBatchRequest\x12\x19\n" +
 	"\bbatch_id\x18\x01 \x01(\tR\abatchId\x124\n" +
-	"\x05items\x18\x02 \x03(\v2\x1e.mini_llm_serve.v1.ExecuteItemR\x05items\"|\n" +
+	"\x05items\x18\x02 \x03(\v2\x1e.mini_llm_serve.v1.ExecuteItemR\x05items\"\xe4\x01\n" +
 	"\vExecuteItem\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\awork_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n" +
 	"\n" +
-	"request_id\x18\x02 \x01(\tR\trequestId\x12\x16\n" +
-	"\x06prompt\x18\x03 \x01(\tR\x06prompt\x12\x1d\n" +
+	"request_id\x18\x02 \x01(\tR\trequestId\x122\n" +
+	"\x05phase\x18\x03 \x01(\x0e2\x1c.mini_llm_serve.v1.WorkPhaseR\x05phase\x12\x16\n" +
+	"\x06prompt\x18\x04 \x01(\tR\x06prompt\x12\x1d\n" +
 	"\n" +
-	"max_tokens\x18\x04 \x01(\rR\tmaxTokens\"\x8e\x01\n" +
+	"max_tokens\x18\x05 \x01(\rR\tmaxTokens\x122\n" +
+	"\x15decode_tokens_planned\x18\x06 \x01(\rR\x13decodeTokensPlanned\"\x8e\x01\n" +
 	"\x14ExecuteBatchResponse\x12\x19\n" +
 	"\bbatch_id\x18\x01 \x01(\tR\abatchId\x12\x1f\n" +
 	"\vexecutor_id\x18\x02 \x01(\tR\n" +
 	"executorId\x12:\n" +
-	"\aresults\x18\x03 \x03(\v2 .mini_llm_serve.v1.ExecuteResultR\aresults\"\xbe\x02\n" +
+	"\aresults\x18\x03 \x03(\v2 .mini_llm_serve.v1.ExecuteResultR\aresults\"\xd2\x02\n" +
 	"\rExecuteResult\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\awork_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x02 \x01(\tR\trequestId\x12\x1f\n" +
 	"\voutput_text\x18\x03 \x01(\tR\n" +
-	"outputText\x12D\n" +
-	"\rfinish_reason\x18\x04 \x01(\x0e2\x1f.mini_llm_serve.v1.FinishReasonR\ffinishReason\x12!\n" +
-	"\finput_tokens\x18\x05 \x01(\rR\vinputTokens\x12#\n" +
-	"\routput_tokens\x18\x06 \x01(\rR\foutputTokens\x12!\n" +
-	"\fexecution_ms\x18\a \x01(\rR\vexecutionMs\x12#\n" +
-	"\rerror_message\x18\b \x01(\tR\ferrorMessage2q\n" +
+	"outputText\x12\x12\n" +
+	"\x04done\x18\x04 \x01(\bR\x04done\x12D\n" +
+	"\rfinish_reason\x18\x05 \x01(\x0e2\x1f.mini_llm_serve.v1.FinishReasonR\ffinishReason\x12!\n" +
+	"\finput_tokens\x18\x06 \x01(\rR\vinputTokens\x12#\n" +
+	"\routput_tokens\x18\a \x01(\rR\foutputTokens\x12!\n" +
+	"\fexecution_ms\x18\b \x01(\rR\vexecutionMs\x12#\n" +
+	"\rerror_message\x18\t \x01(\tR\ferrorMessage2q\n" +
 	"\x0eExecuteService\x12_\n" +
 	"\fExecuteBatch\x12&.mini_llm_serve.v1.ExecuteBatchRequest\x1a'.mini_llm_serve.v1.ExecuteBatchResponseB\xd1\x01\n" +
 	"\x15com.mini_llm_serve.v1B\fExecuteProtoP\x01ZMgithub.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1;mini_llm_servev1\xa2\x02\x03MXX\xaa\x02\x0fMiniLlmServe.V1\xca\x02\x0fMiniLlmServe\\V1\xe2\x02\x1bMiniLlmServe\\V1\\GPBMetadata\xea\x02\x10MiniLlmServe::V1b\x06proto3"
@@ -354,19 +381,21 @@ var file_mini_llm_serve_v1_execute_proto_goTypes = []any{
 	(*ExecuteItem)(nil),          // 1: mini_llm_serve.v1.ExecuteItem
 	(*ExecuteBatchResponse)(nil), // 2: mini_llm_serve.v1.ExecuteBatchResponse
 	(*ExecuteResult)(nil),        // 3: mini_llm_serve.v1.ExecuteResult
-	(FinishReason)(0),            // 4: mini_llm_serve.v1.FinishReason
+	(WorkPhase)(0),               // 4: mini_llm_serve.v1.WorkPhase
+	(FinishReason)(0),            // 5: mini_llm_serve.v1.FinishReason
 }
 var file_mini_llm_serve_v1_execute_proto_depIdxs = []int32{
 	1, // 0: mini_llm_serve.v1.ExecuteBatchRequest.items:type_name -> mini_llm_serve.v1.ExecuteItem
-	3, // 1: mini_llm_serve.v1.ExecuteBatchResponse.results:type_name -> mini_llm_serve.v1.ExecuteResult
-	4, // 2: mini_llm_serve.v1.ExecuteResult.finish_reason:type_name -> mini_llm_serve.v1.FinishReason
-	0, // 3: mini_llm_serve.v1.ExecuteService.ExecuteBatch:input_type -> mini_llm_serve.v1.ExecuteBatchRequest
-	2, // 4: mini_llm_serve.v1.ExecuteService.ExecuteBatch:output_type -> mini_llm_serve.v1.ExecuteBatchResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 1: mini_llm_serve.v1.ExecuteItem.phase:type_name -> mini_llm_serve.v1.WorkPhase
+	3, // 2: mini_llm_serve.v1.ExecuteBatchResponse.results:type_name -> mini_llm_serve.v1.ExecuteResult
+	5, // 3: mini_llm_serve.v1.ExecuteResult.finish_reason:type_name -> mini_llm_serve.v1.FinishReason
+	0, // 4: mini_llm_serve.v1.ExecuteService.ExecuteBatch:input_type -> mini_llm_serve.v1.ExecuteBatchRequest
+	2, // 5: mini_llm_serve.v1.ExecuteService.ExecuteBatch:output_type -> mini_llm_serve.v1.ExecuteBatchResponse
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_mini_llm_serve_v1_execute_proto_init() }

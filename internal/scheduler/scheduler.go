@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
@@ -58,7 +59,9 @@ func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, q Queue, worker worker.W
 
 func (s *scheduler) Enqueue(input *model.WorkItem) error {
 	// metrics: set inflight requests
-	s.metrics.SetInflightRequests(int(s.inflightRequests.Add(1)))
+	if input.Phase == v1.WorkPhasePrefill {
+		s.metrics.SetInflightRequests(int(s.inflightRequests.Add(1)))
+	}
 
 	err := s.queue.Enqueue(input)
 	if err != nil {
@@ -150,7 +153,7 @@ func (s *scheduler) patchExecute(ctx context.Context) {
 					s.l.Errorf("failed to execute event: %v", err)
 				}
 				for _, nextItem := range nextItems {
-					err = s.queue.Enqueue(nextItem)
+					err = s.Enqueue(nextItem)
 				}
 
 				// metrics: observe every task execution cost and executorId

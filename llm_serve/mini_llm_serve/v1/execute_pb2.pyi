@@ -16,16 +16,20 @@ class ExecuteBatchRequest(_message.Message):
     def __init__(self, batch_id: _Optional[str] = ..., items: _Optional[_Iterable[_Union[ExecuteItem, _Mapping]]] = ...) -> None: ...
 
 class ExecuteItem(_message.Message):
-    __slots__ = ("task_id", "request_id", "prompt", "max_tokens")
-    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("work_id", "request_id", "phase", "prompt", "max_tokens", "decode_tokens_planned")
+    WORK_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     MAX_TOKENS_FIELD_NUMBER: _ClassVar[int]
-    task_id: str
+    DECODE_TOKENS_PLANNED_FIELD_NUMBER: _ClassVar[int]
+    work_id: str
     request_id: str
+    phase: _core_pb2.WorkPhase
     prompt: str
     max_tokens: int
-    def __init__(self, task_id: _Optional[str] = ..., request_id: _Optional[str] = ..., prompt: _Optional[str] = ..., max_tokens: _Optional[int] = ...) -> None: ...
+    decode_tokens_planned: int
+    def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., phase: _Optional[_Union[_core_pb2.WorkPhase, str]] = ..., prompt: _Optional[str] = ..., max_tokens: _Optional[int] = ..., decode_tokens_planned: _Optional[int] = ...) -> None: ...
 
 class ExecuteBatchResponse(_message.Message):
     __slots__ = ("batch_id", "executor_id", "results")
@@ -38,21 +42,23 @@ class ExecuteBatchResponse(_message.Message):
     def __init__(self, batch_id: _Optional[str] = ..., executor_id: _Optional[str] = ..., results: _Optional[_Iterable[_Union[ExecuteResult, _Mapping]]] = ...) -> None: ...
 
 class ExecuteResult(_message.Message):
-    __slots__ = ("task_id", "request_id", "output_text", "finish_reason", "input_tokens", "output_tokens", "execution_ms", "error_message")
-    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("work_id", "request_id", "output_text", "done", "finish_reason", "input_tokens", "output_tokens", "execution_ms", "error_message")
+    WORK_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_TEXT_FIELD_NUMBER: _ClassVar[int]
+    DONE_FIELD_NUMBER: _ClassVar[int]
     FINISH_REASON_FIELD_NUMBER: _ClassVar[int]
     INPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_MS_FIELD_NUMBER: _ClassVar[int]
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
-    task_id: str
+    work_id: str
     request_id: str
     output_text: str
+    done: bool
     finish_reason: _core_pb2.FinishReason
     input_tokens: int
     output_tokens: int
     execution_ms: int
     error_message: str
-    def __init__(self, task_id: _Optional[str] = ..., request_id: _Optional[str] = ..., output_text: _Optional[str] = ..., finish_reason: _Optional[_Union[_core_pb2.FinishReason, str]] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., execution_ms: _Optional[int] = ..., error_message: _Optional[str] = ...) -> None: ...
+    def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., output_text: _Optional[str] = ..., done: _Optional[bool] = ..., finish_reason: _Optional[_Union[_core_pb2.FinishReason, str]] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., execution_ms: _Optional[int] = ..., error_message: _Optional[str] = ...) -> None: ...

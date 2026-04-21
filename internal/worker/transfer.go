@@ -11,10 +11,12 @@ func BatchToExecute(batch *model.Batch) *v1.ExecuteBatchRequest {
 	}
 	for _, r := range batch.Items {
 		req.Items = append(req.Items, &v1.ExecuteItem{
-			TaskId:    r.WorkId,
-			RequestId: r.RequestId,
-			Prompt:    r.Prompt,
-			MaxTokens: r.MaxTokens,
+			WorkId:              r.WorkId,
+			RequestId:           r.RequestId,
+			Phase:               r.Phase,
+			Prompt:              r.Prompt,
+			MaxTokens:           r.MaxTokens,
+			DecodeTokensPlanned: r.DecodeTokensPlanned,
 		})
 	}
 	return req

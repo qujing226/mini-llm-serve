@@ -15,24 +15,24 @@ func TestQueueEnqueueDequeueFIFO(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, q.Enqueue(&model.Task{TaskId: "t1"}))
-	require.NoError(t, q.Enqueue(&model.Task{TaskId: "t2"}))
-	require.NoError(t, q.Enqueue(&model.Task{TaskId: "t3"}))
+	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "t1"}))
+	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "t2"}))
+	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "t3"}))
 	require.Equal(t, uint64(3), q.Length())
 	require.Equal(t, uint64(0), q.AvailableSpace())
 
 	tasks, err := q.Dequeue(2)
 	require.NoError(t, err)
 	require.Len(t, tasks, 2)
-	require.Equal(t, "t1", tasks[0].TaskId)
-	require.Equal(t, "t2", tasks[1].TaskId)
+	require.Equal(t, "t1", tasks[0].WorkId)
+	require.Equal(t, "t2", tasks[1].WorkId)
 	require.Equal(t, uint64(1), q.Length())
 	require.Equal(t, uint64(2), q.AvailableSpace())
 
 	tasks, err = q.Dequeue(2)
 	require.NoError(t, err)
 	require.Len(t, tasks, 1)
-	require.Equal(t, "t3", tasks[0].TaskId)
+	require.Equal(t, "t3", tasks[0].WorkId)
 	require.Equal(t, uint64(0), q.Length())
 	require.Equal(t, uint64(3), q.AvailableSpace())
 }
@@ -44,8 +44,8 @@ func TestQueueFull(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, q.Enqueue(&model.Task{TaskId: "t1"}))
-	err := q.Enqueue(&model.Task{TaskId: "t2"})
+	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "t1"}))
+	err := q.Enqueue(&model.WorkItem{WorkId: "t2"})
 	require.Error(t, err)
 }
 

@@ -13,9 +13,9 @@ func StartBatchLoop(lc fx.Lifecycle, s scheduler.Scheduler, log *zap.SugaredLogg
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			go func() {
-				log.Info("Scheduler batch loop started")
+				log.Info("scheduler batch loop started")
 				s.Batch(runCtx)
-				log.Info("Scheduler batch loop stopped")
+				log.Info("scheduler batch loop stopped")
 			}()
 
 			return nil
