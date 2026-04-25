@@ -33,11 +33,13 @@ type Request struct {
 	Labels map[string]string
 }
 
-// GenerateOutput stage1
+// GenerateOutput stage2
 type GenerateOutput struct {
 	RequestId    string
-	Output       string
+	Index        uint32
+	DeltaText    string
 	FinishReason v1.FinishReason
+	Done         bool
 	Usage        Usage
 	Timing       Timing
 	BatchID      string
@@ -85,30 +87,10 @@ type Event struct {
 	Err error
 }
 
-type Batch struct {
-	BatchID   string
-	BatchSize uint64
-	CreateAt  time.Time
-	Items     []*WorkItem
-}
-
 type RuntimeStats struct {
 	QueueLength      uint64
 	InflightRequests uint64
 	InflightBatches  uint64
 	BusyExecutors    uint64
 	IdleExecutors    uint64
-}
-
-type Usage struct {
-	InputTokens  uint32
-	OutputTokens uint32
-	TotalTokens  uint32
-}
-
-type Timing struct {
-	Queue     time.Duration
-	BatchWait time.Duration
-	Execution time.Duration
-	Total     time.Duration
 }

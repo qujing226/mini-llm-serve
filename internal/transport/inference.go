@@ -155,13 +155,39 @@ func (i *inferenceService) Generate(ctx context.Context, request *v1.GenerateReq
 		status = string(appErrors.CodeOf(err))
 		return nil, appErrors.ToConnectError(err)
 	}
-	out, err := i.InferenceHandler.Generate(ctx, req)
+	ch, err := i.InferenceHandler.GenerateStream(ctx, req)
 	if err != nil {
 		status = string(appErrors.CodeOf(err))
 		return nil, appErrors.ToConnectError(err)
 	}
-	executorId = out.ExecutorId
+	out := &model.GenerateOutput{RequestId: request.RequestId}
 
+	for {
+		select {
+		case msg, ok := <-ch:
+			if !ok {
+				status = string(appErrors.CodeInternal)
+				return nil, appErrors.ToConnectError(appErrors.New(appErrors.CodeInternal, "stream closed before completion"))
+			}
+			out.DeltaText += msg.DeltaText
+			if msg.Done {
+				out.Usage = msg.Usage
+				out.BatchID = msg.BatchID
+				out.BatchSize = msg.BatchSize
+				out.ExecutorId = msg.ExecutorId
+				out.Done = msg.Done
+				out.Timing = msg.Timing
+				out.FinishReason = msg.FinishReason
+				out.Index = msg.Index
+				goto ret
+			}
+
+		case <-ctx.Done():
+			status = string(appErrors.CodeOf(ctx.Err()))
+			return nil, appErrors.ToConnectError(ctx.Err())
+		}
+	}
+ret:
 	resp, err := model.ModelToProtoMsg(out)
 	if err != nil {
 		status = string(appErrors.CodeOf(err))
@@ -194,7 +220,11 @@ func (i *inferenceService) GenerateStream(ctx context.Context, request *v1.Gener
 	}
 	for {
 		select {
-		case msg := <-ch:
+		case msg, ok := <-ch:
+			if !ok {
+				status = string(appErrors.CodeInternal)
+				return appErrors.ToConnectError(appErrors.New(appErrors.CodeInternal, "stream closed before completion"))
+			}
 			resp, transferErr := model.ModelToProtoMsgStream(msg)
 			if transferErr != nil {
 				status = string(appErrors.CodeOf(transferErr))
@@ -204,6 +234,9 @@ func (i *inferenceService) GenerateStream(ctx context.Context, request *v1.Gener
 			if sendErr != nil {
 				status = string(appErrors.CodeOf(sendErr))
 				return appErrors.ToConnectError(sendErr)
+			}
+			if msg.Done {
+				return nil
 			}
 		case <-ctx.Done():
 			status = string(appErrors.CodeOf(ctx.Err()))

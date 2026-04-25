@@ -5,6 +5,7 @@ import (
 	"github.com/qujing226/mini-llm-serve/internal/handler"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/scheduler"
+	"github.com/qujing226/mini-llm-serve/internal/state"
 	connect "github.com/qujing226/mini-llm-serve/internal/transport"
 	"github.com/qujing226/mini-llm-serve/internal/worker"
 	"github.com/spf13/pflag"
@@ -37,6 +38,7 @@ func main() {
 
 			worker.NewExecutors,
 			worker.NewWorker,
+			state.NewRequestLifecycleStateManager,
 			scheduler.NewQueue,
 			scheduler.NewScheduler,
 			handler.NewInferenceHandle,

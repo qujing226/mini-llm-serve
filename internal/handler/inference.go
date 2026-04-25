@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"time"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
@@ -13,7 +12,6 @@ import (
 )
 
 type InferenceHandler interface {
-	Generate(ctx context.Context, req *model.Request) (*model.GenerateOutput, error)
 	GenerateStream(ctx context.Context, req *model.Request) (<-chan *model.GenerateOutput, error)
 }
 
@@ -33,49 +31,61 @@ func NewInferenceHandle(l *zap.SugaredLogger, s scheduler.Scheduler, r state.Req
 	return e
 }
 
-func (e *inferenceHandler) Generate(ctx context.Context, req *model.Request) (*model.GenerateOutput, error) {
-	firstWorkItem, err := e.requestManager.Create(req)
-	if err != nil {
-		return nil, err
-	}
-
-	subscribeChan, err := e.requestManager.Subscribe(req.RequestId)
-	if err != nil {
-		e.requestManager.Cancel(req.RequestId)
-		return nil, err
-	}
-
-	err = e.scheduler.Enqueue(firstWorkItem)
-	if err != nil {
-		e.requestManager.Cancel(req.RequestId)
-		return nil, err
-	}
-	var res string
-	select {
-	case event := <-subscribeChan:
-		res += event.DeltaText
-
-	case <-ctx.Done():
-		e.requestManager.Cancel(req.RequestId)
-		return nil, errors.Wrap(errors.CodeRequestCanceled, "handler.generate", "request canceled", ctx.Err())
-	case <-time.After(req.Timeout):
-		e.requestManager.Cancel(req.RequestId)
-		return nil, errors.New(errors.CodeRequestTimeout, "request timeout")
-	}
-
-	output := &model.GenerateOutput{
-		RequestId:    req.RequestId,
-		Output:       res,
-		FinishReason: v1.FinishReasonStop,
-		Usage:        model.Usage{},
-		Timing:       model.Timing{},
-		BatchID:      "",
-		BatchSize:    0,
-		ExecutorId:   "",
-	}
-	return output, err
-}
-
 func (e *inferenceHandler) GenerateStream(ctx context.Context, req *model.Request) (<-chan *model.GenerateOutput, error) {
-	panic("implement me")
+	prefillItem, err := e.requestManager.Create(req)
+	if err != nil {
+		return nil, errors.New(errors.CodeInternal, err.Error())
+	}
+
+	ch, err := e.requestManager.Subscribe(req.RequestId)
+	if err != nil {
+		e.requestManager.Cancel(prefillItem.RequestId)
+		return nil, errors.New(errors.CodeInternal, err.Error())
+	}
+
+	err = e.scheduler.Enqueue(prefillItem)
+	if err != nil {
+		e.requestManager.Cancel(prefillItem.RequestId)
+		return nil, errors.New(errors.CodeInternal, err.Error())
+	}
+
+	chOut := make(chan *model.GenerateOutput, 5)
+
+	go func() {
+		for {
+			select {
+			case event, ok := <-ch:
+				if !ok {
+					return
+				}
+				if event.Type == v1.EventTypePrefillFinished {
+					continue
+				}
+				output := &model.GenerateOutput{
+					RequestId:    event.RequestId,
+					Index:        event.ChunkIndex,
+					DeltaText:    event.DeltaText,
+					FinishReason: event.FinishReason,
+					Done:         event.Done,
+					Usage:        event.Usage,
+					Timing:       event.Timing,
+					BatchID:      event.BatchId,
+					BatchSize:    0,
+					ExecutorId:   event.ExecutorId,
+				}
+				chOut <- output
+				if event.Done {
+					e.requestManager.Finish(prefillItem.RequestId)
+					close(chOut)
+					return
+				}
+			case <-ctx.Done():
+				e.requestManager.Cancel(prefillItem.RequestId)
+				close(chOut)
+				return
+			}
+		}
+	}()
+
+	return chOut, nil
 }

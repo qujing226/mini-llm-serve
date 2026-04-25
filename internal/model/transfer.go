@@ -8,14 +8,14 @@ import (
 
 func ProtoMsgToModel(in *v1.GenerateRequest) (*Request, error) {
 	out := &Request{
-		RequestId: in.RequestId,
-		Model:     in.Model,
-		Prompt:    in.Prompt,
-		MaxTokens: in.MaxTokens,
-		Timeout:   time.Duration(int64(in.TimeoutMs)) * time.Millisecond,
-		Deadline:  time.Now().Add(time.Duration(in.TimeoutMs) * time.Millisecond),
-		//CacheKey:        "",
-		PromptTokens:    0,
+		RequestId:       in.RequestId,
+		Model:           in.Model,
+		Prompt:          in.Prompt,
+		MaxTokens:       in.MaxTokens,
+		Timeout:         time.Duration(int64(in.TimeoutMs)) * time.Millisecond,
+		Deadline:        time.Now().Add(time.Duration(in.TimeoutMs) * time.Millisecond),
+		CacheKey:        in.CacheKey,
+		PromptTokens:    uint32(max(1, len(in.Prompt)/4)),
 		GeneratedTokens: 0,
 		ChunkTokens:     0,
 		Phase:           0,
@@ -51,7 +51,7 @@ func ModelToProtoMsg(in *GenerateOutput) (*v1.GenerateResponse, error) {
 
 	out := &v1.GenerateResponse{
 		RequestId:    in.RequestId,
-		OutputText:   in.Output,
+		OutputText:   in.DeltaText,
 		FinishReason: in.FinishReason,
 		Usage:        usage,
 		Timing:       timing,
@@ -63,31 +63,17 @@ func ModelToProtoMsg(in *GenerateOutput) (*v1.GenerateResponse, error) {
 }
 
 func ModelToProtoMsgStream(in *GenerateOutput) (*v1.GenerateResponseChunk, error) {
-	usage := &v1.Usage{
-		InputTokens:  in.Usage.InputTokens,
-		OutputTokens: in.Usage.OutputTokens,
-		TotalTokens:  in.Usage.TotalTokens,
-	}
-
-	//timing := &v1.Timing{
-	//	QueueMs:     durationToMilliseconds(in.Timing.Queue),
-	//	BatchWaitMs: durationToMilliseconds(in.Timing.BatchWait),
-	//	ExecutionMs: durationToMilliseconds(in.Timing.Execution),
-	//	TotalMs:     durationToMilliseconds(in.Timing.Total),
-	//}
-
-	//batch := &v1.BatchInfo{
-	//	BatchId:   in.BatchID,
-	//	BatchSize: in.BatchSize,
-	//}
-
 	out := &v1.GenerateResponseChunk{
 		RequestId:    in.RequestId,
-		Index:        0,
-		DeltaText:    "",
-		Done:         false,
+		Index:        in.Index,
+		DeltaText:    in.DeltaText,
+		Done:         in.Done,
 		FinishReason: in.FinishReason,
-		Usage:        usage,
+		Usage: &v1.Usage{
+			InputTokens:  in.Usage.InputTokens,
+			OutputTokens: in.Usage.OutputTokens,
+			TotalTokens:  in.Usage.TotalTokens,
+		},
 	}
 
 	return out, nil

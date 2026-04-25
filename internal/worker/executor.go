@@ -102,7 +102,7 @@ func (m *mockExecutor) ExecuteOne() string {
 	//	TaskId:        task.TaskId,
 	//	RequestId:     task.RequestId,
 	//	ExecutorId:    m.GetId(),
-	//	Output:        "to stimulate output, I spent all of my tokens",
+	//	DeltaText:        "to stimulate output, I spent all of my tokens",
 	//	FinishReason:  0,
 	//	ExecutionTime: endExecutionTime.Sub(beginExecutionTime),
 	//	Usage: model.Usage{
