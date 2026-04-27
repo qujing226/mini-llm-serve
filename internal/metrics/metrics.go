@@ -6,6 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 )
 
@@ -14,9 +15,10 @@ type Metrics interface {
 	ObserveRequestDuration(s float64)
 	ObserveQueueWait(s float64)
 	ObserveExecution(s float64, executorID string)
-	ObserveBatchSize(size int)
-	IncBatches(executorID string)
-	SetQueueLength(n int)
+	ObserveBatchSize(size int, phase v1.WorkPhase)
+	IncBatches(executorID string, phase v1.WorkPhase)
+	SetPrefillQueueLength(n int)
+	SetDecodeQueueLength(n int)
 	SetInflightRequests(n int)
 	SetInflightBatches(n int)
 	IncQueueRejected()
@@ -32,9 +34,10 @@ type metrics struct {
 	requestDurationSeconds prometheus.Histogram
 	queueWaitSeconds       prometheus.Histogram
 	executionSeconds       *prometheus.HistogramVec
-	batchSize              prometheus.Histogram
+	batchSize              *prometheus.HistogramVec
 	batchesTotal           *prometheus.CounterVec
-	queueLength            prometheus.Gauge
+	prefillQueueLength     prometheus.Gauge
+	decodeQueueLength      prometheus.Gauge
 	inflightRequests       prometheus.Gauge
 	inflightBatches        prometheus.Gauge
 	queueRejectedTotal     prometheus.Counter
@@ -66,18 +69,21 @@ func NewMetrics() Metrics {
 		},
 			[]string{"executor"},
 		),
-		batchSize: prometheus.NewHistogram(prometheus.HistogramOpts{
-			Name:    "llm_batch_size",
-			Help:    "Number of requests in a batch",
-			Buckets: prometheus.LinearBuckets(3, 3, 4),
-		}),
+		batchSize: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Name: "llm_batch_size",
+			Help: "Number of tasks in a batch",
+		}, []string{"phase"}),
 		batchesTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "llm_batches_total",
 			Help: "Number of batches which executor had processed",
-		}, []string{"executor"}),
-		queueLength: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "llm_queue_length",
-			Help: "Number of queued requests",
+		}, []string{"executor", "phase"}),
+		prefillQueueLength: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "llm_prefill_queue_length",
+			Help: "Number of queued prefill works",
+		}),
+		decodeQueueLength: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "llm_decode_queue_length",
+			Help: "Number of queued decode works",
 		}),
 		inflightRequests: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "llm_inflight_requests",
@@ -96,11 +102,11 @@ func NewMetrics() Metrics {
 			Help: "Total Number of executor errors",
 		}, []string{"executor"}),
 		m: &model.RuntimeStats{
-			QueueLength:      0,
-			InflightRequests: 0,
-			InflightBatches:  0,
-			BusyExecutors:    0,
-			IdleExecutors:    0,
+			PrefillQueueLength: 0,
+			InflightRequests:   0,
+			InflightBatches:    0,
+			BusyExecutors:      0,
+			IdleExecutors:      0,
 		},
 	}
 	m.re = prometheus.NewRegistry()
@@ -111,7 +117,8 @@ func NewMetrics() Metrics {
 		m.executionSeconds,
 		m.batchSize,
 		m.batchesTotal,
-		m.queueLength,
+		m.prefillQueueLength,
+		m.decodeQueueLength,
 		m.inflightRequests,
 		m.inflightBatches,
 		m.queueRejectedTotal,
@@ -148,18 +155,25 @@ func (m *metrics) ObserveExecution(s float64, executorID string) {
 
 }
 
-func (m *metrics) ObserveBatchSize(size int) {
-	m.batchSize.Observe(float64(size))
+func (m *metrics) ObserveBatchSize(size int, phase v1.WorkPhase) {
+	m.batchSize.WithLabelValues(phase.String()).Observe(float64(size))
 }
 
-func (m *metrics) IncBatches(executorID string) {
-	m.batchesTotal.WithLabelValues(executorID).Inc()
+func (m *metrics) IncBatches(executorID string, phase v1.WorkPhase) {
+	m.batchesTotal.WithLabelValues(executorID, phase.String()).Inc()
 }
 
-func (m *metrics) SetQueueLength(n int) {
-	m.queueLength.Set(float64(n))
+func (m *metrics) SetPrefillQueueLength(n int) {
+	m.prefillQueueLength.Set(float64(n))
 	m.mu.Lock()
-	m.m.QueueLength = uint64(n)
+	m.m.PrefillQueueLength = uint64(n)
+	m.mu.Unlock()
+}
+
+func (m *metrics) SetDecodeQueueLength(n int) {
+	m.decodeQueueLength.Set(float64(n))
+	m.mu.Lock()
+	m.m.DecodeQueueLength = uint64(n)
 	m.mu.Unlock()
 }
 

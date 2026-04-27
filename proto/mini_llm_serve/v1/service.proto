@@ -32,6 +32,7 @@ message GenerateResponse{
   Timing timing = 5;
   BatchInfo batch = 6;
   string executor_id = 7;
+  string error_message = 8;
 }
 
 message GenerateResponseChunk {
@@ -41,6 +42,7 @@ message GenerateResponseChunk {
   bool done = 4;
   FinishReason finish_reason = 5;
   Usage usage = 6;
+  string error_message = 7;
 }
 
 message HealthRequest{}
@@ -52,10 +54,11 @@ message HealthResponse{
 message GetRuntimeStatsRequest{}
 
 message GetRuntimeStatsResponse{
-  uint32 queue_len = 1;
-  uint32 inflight_requests = 2;
-  uint32 inflight_batches = 3;
-  uint32 busy_executors = 4;
-  uint32 idle_executors = 5;
+  uint32 prefill_queue_len = 1;
+  uint32 decode_queue_len = 2;
+  uint32 inflight_requests = 3;
+  uint32 inflight_batches = 4;
+  uint32 busy_executors = 5;
+  uint32 idle_executors = 6;
 }
 

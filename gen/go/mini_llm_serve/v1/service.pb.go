@@ -122,6 +122,7 @@ type GenerateResponse struct {
 	Timing        *Timing                `protobuf:"bytes,5,opt,name=timing,proto3" json:"timing,omitempty"`
 	Batch         *BatchInfo             `protobuf:"bytes,6,opt,name=batch,proto3" json:"batch,omitempty"`
 	ExecutorId    string                 `protobuf:"bytes,7,opt,name=executor_id,json=executorId,proto3" json:"executor_id,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,8,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -205,6 +206,13 @@ func (x *GenerateResponse) GetExecutorId() string {
 	return ""
 }
 
+func (x *GenerateResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
 type GenerateResponseChunk struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
@@ -213,6 +221,7 @@ type GenerateResponseChunk struct {
 	Done          bool                   `protobuf:"varint,4,opt,name=done,proto3" json:"done,omitempty"`
 	FinishReason  FinishReason           `protobuf:"varint,5,opt,name=finish_reason,json=finishReason,proto3,enum=mini_llm_serve.v1.FinishReason" json:"finish_reason,omitempty"`
 	Usage         *Usage                 `protobuf:"bytes,6,opt,name=usage,proto3" json:"usage,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,7,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -287,6 +296,13 @@ func (x *GenerateResponseChunk) GetUsage() *Usage {
 		return x.Usage
 	}
 	return nil
+}
+
+func (x *GenerateResponseChunk) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
 }
 
 type HealthRequest struct {
@@ -407,11 +423,12 @@ func (*GetRuntimeStatsRequest) Descriptor() ([]byte, []int) {
 
 type GetRuntimeStatsResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	QueueLen         uint32                 `protobuf:"varint,1,opt,name=queue_len,json=queueLen,proto3" json:"queue_len,omitempty"`
-	InflightRequests uint32                 `protobuf:"varint,2,opt,name=inflight_requests,json=inflightRequests,proto3" json:"inflight_requests,omitempty"`
-	InflightBatches  uint32                 `protobuf:"varint,3,opt,name=inflight_batches,json=inflightBatches,proto3" json:"inflight_batches,omitempty"`
-	BusyExecutors    uint32                 `protobuf:"varint,4,opt,name=busy_executors,json=busyExecutors,proto3" json:"busy_executors,omitempty"`
-	IdleExecutors    uint32                 `protobuf:"varint,5,opt,name=idle_executors,json=idleExecutors,proto3" json:"idle_executors,omitempty"`
+	PrefillQueueLen  uint32                 `protobuf:"varint,1,opt,name=prefill_queue_len,json=prefillQueueLen,proto3" json:"prefill_queue_len,omitempty"`
+	DecodeQueueLen   uint32                 `protobuf:"varint,2,opt,name=decode_queue_len,json=decodeQueueLen,proto3" json:"decode_queue_len,omitempty"`
+	InflightRequests uint32                 `protobuf:"varint,3,opt,name=inflight_requests,json=inflightRequests,proto3" json:"inflight_requests,omitempty"`
+	InflightBatches  uint32                 `protobuf:"varint,4,opt,name=inflight_batches,json=inflightBatches,proto3" json:"inflight_batches,omitempty"`
+	BusyExecutors    uint32                 `protobuf:"varint,5,opt,name=busy_executors,json=busyExecutors,proto3" json:"busy_executors,omitempty"`
+	IdleExecutors    uint32                 `protobuf:"varint,6,opt,name=idle_executors,json=idleExecutors,proto3" json:"idle_executors,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -446,9 +463,16 @@ func (*GetRuntimeStatsResponse) Descriptor() ([]byte, []int) {
 	return file_mini_llm_serve_v1_service_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *GetRuntimeStatsResponse) GetQueueLen() uint32 {
+func (x *GetRuntimeStatsResponse) GetPrefillQueueLen() uint32 {
 	if x != nil {
-		return x.QueueLen
+		return x.PrefillQueueLen
+	}
+	return 0
+}
+
+func (x *GetRuntimeStatsResponse) GetDecodeQueueLen() uint32 {
+	if x != nil {
+		return x.DecodeQueueLen
 	}
 	return 0
 }
@@ -500,7 +524,7 @@ const file_mini_llm_serve_v1_service_proto_rawDesc = "" +
 	" \x03(\v2..mini_llm_serve.v1.GenerateRequest.LabelsEntryR\x06labels\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd0\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf5\x02\n" +
 	"\x10GenerateResponse\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1f\n" +
@@ -511,7 +535,8 @@ const file_mini_llm_serve_v1_service_proto_rawDesc = "" +
 	"\x06timing\x18\x05 \x01(\v2\x19.mini_llm_serve.v1.TimingR\x06timing\x122\n" +
 	"\x05batch\x18\x06 \x01(\v2\x1c.mini_llm_serve.v1.BatchInfoR\x05batch\x12\x1f\n" +
 	"\vexecutor_id\x18\a \x01(\tR\n" +
-	"executorId\"\xf5\x01\n" +
+	"executorId\x12#\n" +
+	"\rerror_message\x18\b \x01(\tR\ferrorMessage\"\x9a\x02\n" +
 	"\x15GenerateResponseChunk\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x14\n" +
@@ -520,17 +545,19 @@ const file_mini_llm_serve_v1_service_proto_rawDesc = "" +
 	"delta_text\x18\x03 \x01(\tR\tdeltaText\x12\x12\n" +
 	"\x04done\x18\x04 \x01(\bR\x04done\x12D\n" +
 	"\rfinish_reason\x18\x05 \x01(\x0e2\x1f.mini_llm_serve.v1.FinishReasonR\ffinishReason\x12.\n" +
-	"\x05usage\x18\x06 \x01(\v2\x18.mini_llm_serve.v1.UsageR\x05usage\"\x0f\n" +
+	"\x05usage\x18\x06 \x01(\v2\x18.mini_llm_serve.v1.UsageR\x05usage\x12#\n" +
+	"\rerror_message\x18\a \x01(\tR\ferrorMessage\"\x0f\n" +
 	"\rHealthRequest\"(\n" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\"\x18\n" +
-	"\x16GetRuntimeStatsRequest\"\xdc\x01\n" +
-	"\x17GetRuntimeStatsResponse\x12\x1b\n" +
-	"\tqueue_len\x18\x01 \x01(\rR\bqueueLen\x12+\n" +
-	"\x11inflight_requests\x18\x02 \x01(\rR\x10inflightRequests\x12)\n" +
-	"\x10inflight_batches\x18\x03 \x01(\rR\x0finflightBatches\x12%\n" +
-	"\x0ebusy_executors\x18\x04 \x01(\rR\rbusyExecutors\x12%\n" +
-	"\x0eidle_executors\x18\x05 \x01(\rR\ridleExecutors2\xc9\x01\n" +
+	"\x16GetRuntimeStatsRequest\"\x95\x02\n" +
+	"\x17GetRuntimeStatsResponse\x12*\n" +
+	"\x11prefill_queue_len\x18\x01 \x01(\rR\x0fprefillQueueLen\x12(\n" +
+	"\x10decode_queue_len\x18\x02 \x01(\rR\x0edecodeQueueLen\x12+\n" +
+	"\x11inflight_requests\x18\x03 \x01(\rR\x10inflightRequests\x12)\n" +
+	"\x10inflight_batches\x18\x04 \x01(\rR\x0finflightBatches\x12%\n" +
+	"\x0ebusy_executors\x18\x05 \x01(\rR\rbusyExecutors\x12%\n" +
+	"\x0eidle_executors\x18\x06 \x01(\rR\ridleExecutors2\xc9\x01\n" +
 	"\x10InferenceService\x12S\n" +
 	"\bGenerate\x12\".mini_llm_serve.v1.GenerateRequest\x1a#.mini_llm_serve.v1.GenerateResponse\x12`\n" +
 	"\x0eGenerateStream\x12\".mini_llm_serve.v1.GenerateRequest\x1a(.mini_llm_serve.v1.GenerateResponseChunk0\x012\xc7\x01\n" +

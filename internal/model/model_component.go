@@ -1,10 +1,15 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+)
 
 type Batch struct {
 	BatchID   string
 	BatchSize uint64
+	Phase     v1.WorkPhase
 	CreateAt  time.Time
 	Items     []*WorkItem
 }

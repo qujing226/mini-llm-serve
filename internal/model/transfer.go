@@ -17,7 +17,6 @@ func ProtoMsgToModel(in *v1.GenerateRequest) (*Request, error) {
 		CacheKey:        in.CacheKey,
 		PromptTokens:    uint32(max(1, len(in.Prompt)/4)),
 		GeneratedTokens: 0,
-		ChunkTokens:     0,
 		Phase:           0,
 		FinishReason:    0,
 		OutputText:      "",
@@ -57,6 +56,7 @@ func ModelToProtoMsg(in *GenerateOutput) (*v1.GenerateResponse, error) {
 		Timing:       timing,
 		Batch:        batch,
 		ExecutorId:   in.ExecutorId,
+		ErrorMessage: errorMessage(in.Err),
 	}
 
 	return out, nil
@@ -74,6 +74,7 @@ func ModelToProtoMsgStream(in *GenerateOutput) (*v1.GenerateResponseChunk, error
 			OutputTokens: in.Usage.OutputTokens,
 			TotalTokens:  in.Usage.TotalTokens,
 		},
+		ErrorMessage: errorMessage(in.Err),
 	}
 
 	return out, nil
@@ -84,4 +85,11 @@ func durationToMilliseconds(d time.Duration) uint32 {
 		return 0
 	}
 	return uint32(d / time.Millisecond)
+}
+
+func errorMessage(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }

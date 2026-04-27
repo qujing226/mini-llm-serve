@@ -39,13 +39,13 @@ func (e *inferenceHandler) GenerateStream(ctx context.Context, req *model.Reques
 
 	ch, err := e.requestManager.Subscribe(req.RequestId)
 	if err != nil {
-		e.requestManager.Cancel(prefillItem.RequestId)
+		e.requestManager.Fail(prefillItem.RequestId, err)
 		return nil, errors.New(errors.CodeInternal, err.Error())
 	}
 
 	err = e.scheduler.Enqueue(prefillItem)
 	if err != nil {
-		e.requestManager.Cancel(prefillItem.RequestId)
+		//e.requestManager.Cancel(prefillItem.RequestId)
 		return nil, errors.New(errors.CodeInternal, err.Error())
 	}
 
@@ -72,6 +72,7 @@ func (e *inferenceHandler) GenerateStream(ctx context.Context, req *model.Reques
 					BatchID:      event.BatchId,
 					BatchSize:    0,
 					ExecutorId:   event.ExecutorId,
+					Err:          event.Err,
 				}
 				chOut <- output
 				if event.Done {

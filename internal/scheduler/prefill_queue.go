@@ -16,19 +16,19 @@ type Queue interface {
 	AvailableSpace() uint64
 }
 
-type queue struct {
+type prefillQueue struct {
 	mu    sync.Mutex
 	tasks []*model.WorkItem
 	size  uint64
 	round time.Duration
 }
 
-func NewQueue(cfg *conf.Conf) Queue {
+func NewPrefillQueue(cfg *conf.Conf) Queue {
 	length := cfg.Server.QueueLength
 	if length == 0 {
 		length = 100
 	}
-	q := &queue{
+	q := &prefillQueue{
 		size:  length,
 		tasks: make([]*model.WorkItem, 0, length),
 		round: cfg.Server.QueueRoundInterval(),
@@ -36,18 +36,18 @@ func NewQueue(cfg *conf.Conf) Queue {
 	return q
 }
 
-func (q *queue) Enqueue(t *model.WorkItem) error {
+func (q *prefillQueue) Enqueue(t *model.WorkItem) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
 	if uint64(len(q.tasks)) >= q.size {
-		return errors.New(errors.CodeQueueFull, "queue is full")
+		return errors.New(errors.CodeQueueFull, "prefillQueue is full")
 	}
 	q.tasks = append(q.tasks, t)
 	return nil
 }
 
-func (q *queue) Dequeue(n uint64) ([]*model.WorkItem, error) {
+func (q *prefillQueue) Dequeue(n uint64) ([]*model.WorkItem, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -63,13 +63,13 @@ func (q *queue) Dequeue(n uint64) ([]*model.WorkItem, error) {
 	return taskList, nil
 }
 
-func (q *queue) Length() uint64 {
+func (q *prefillQueue) Length() uint64 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	return uint64(len(q.tasks))
 }
 
-func (q *queue) AvailableSpace() uint64 {
+func (q *prefillQueue) AvailableSpace() uint64 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	return q.size - uint64(len(q.tasks))

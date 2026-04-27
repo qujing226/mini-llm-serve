@@ -33,14 +33,27 @@ func main() {
 			return &fxevent.ZapLogger{Logger: log.Desugar()}
 		}),
 		fx.Options(),
+
+		// initialize scheduler
+		fx.Provide(
+			fx.Annotate(
+				scheduler.NewPrefillQueue,
+				fx.ResultTags(`name:"prefillQueue"`),
+			),
+			fx.Annotate(
+				scheduler.NewDecodeQueue,
+				fx.ResultTags(`name:"decodeQueue"`),
+			),
+			fx.Annotate(
+				scheduler.NewScheduler,
+				fx.ParamTags(``, ``, `name:"prefillQueue"`, `name:"decodeQueue"`, ``, ``, ``),
+			),
+		),
 		fx.Provide(
 			metrics.NewMetrics,
-
 			worker.NewExecutors,
 			worker.NewWorker,
 			state.NewRequestLifecycleStateManager,
-			scheduler.NewQueue,
-			scheduler.NewScheduler,
 			handler.NewInferenceHandle,
 			connect.NewLLMServingServer,
 			connect.NewAdminService,

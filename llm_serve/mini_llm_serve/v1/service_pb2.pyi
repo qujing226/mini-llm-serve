@@ -33,7 +33,7 @@ class GenerateRequest(_message.Message):
     def __init__(self, request_id: _Optional[str] = ..., model: _Optional[str] = ..., prompt: _Optional[str] = ..., max_tokens: _Optional[int] = ..., timeout_ms: _Optional[int] = ..., cache_key: _Optional[str] = ..., labels: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class GenerateResponse(_message.Message):
-    __slots__ = ("request_id", "output_text", "finish_reason", "usage", "timing", "batch", "executor_id")
+    __slots__ = ("request_id", "output_text", "finish_reason", "usage", "timing", "batch", "executor_id", "error_message")
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_TEXT_FIELD_NUMBER: _ClassVar[int]
     FINISH_REASON_FIELD_NUMBER: _ClassVar[int]
@@ -41,6 +41,7 @@ class GenerateResponse(_message.Message):
     TIMING_FIELD_NUMBER: _ClassVar[int]
     BATCH_FIELD_NUMBER: _ClassVar[int]
     EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     request_id: str
     output_text: str
     finish_reason: _core_pb2.FinishReason
@@ -48,23 +49,26 @@ class GenerateResponse(_message.Message):
     timing: _core_pb2.Timing
     batch: _core_pb2.BatchInfo
     executor_id: str
-    def __init__(self, request_id: _Optional[str] = ..., output_text: _Optional[str] = ..., finish_reason: _Optional[_Union[_core_pb2.FinishReason, str]] = ..., usage: _Optional[_Union[_core_pb2.Usage, _Mapping]] = ..., timing: _Optional[_Union[_core_pb2.Timing, _Mapping]] = ..., batch: _Optional[_Union[_core_pb2.BatchInfo, _Mapping]] = ..., executor_id: _Optional[str] = ...) -> None: ...
+    error_message: str
+    def __init__(self, request_id: _Optional[str] = ..., output_text: _Optional[str] = ..., finish_reason: _Optional[_Union[_core_pb2.FinishReason, str]] = ..., usage: _Optional[_Union[_core_pb2.Usage, _Mapping]] = ..., timing: _Optional[_Union[_core_pb2.Timing, _Mapping]] = ..., batch: _Optional[_Union[_core_pb2.BatchInfo, _Mapping]] = ..., executor_id: _Optional[str] = ..., error_message: _Optional[str] = ...) -> None: ...
 
 class GenerateResponseChunk(_message.Message):
-    __slots__ = ("request_id", "index", "delta_text", "done", "finish_reason", "usage")
+    __slots__ = ("request_id", "index", "delta_text", "done", "finish_reason", "usage", "error_message")
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     INDEX_FIELD_NUMBER: _ClassVar[int]
     DELTA_TEXT_FIELD_NUMBER: _ClassVar[int]
     DONE_FIELD_NUMBER: _ClassVar[int]
     FINISH_REASON_FIELD_NUMBER: _ClassVar[int]
     USAGE_FIELD_NUMBER: _ClassVar[int]
+    ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     request_id: str
     index: int
     delta_text: str
     done: bool
     finish_reason: _core_pb2.FinishReason
     usage: _core_pb2.Usage
-    def __init__(self, request_id: _Optional[str] = ..., index: _Optional[int] = ..., delta_text: _Optional[str] = ..., done: _Optional[bool] = ..., finish_reason: _Optional[_Union[_core_pb2.FinishReason, str]] = ..., usage: _Optional[_Union[_core_pb2.Usage, _Mapping]] = ...) -> None: ...
+    error_message: str
+    def __init__(self, request_id: _Optional[str] = ..., index: _Optional[int] = ..., delta_text: _Optional[str] = ..., done: _Optional[bool] = ..., finish_reason: _Optional[_Union[_core_pb2.FinishReason, str]] = ..., usage: _Optional[_Union[_core_pb2.Usage, _Mapping]] = ..., error_message: _Optional[str] = ...) -> None: ...
 
 class HealthRequest(_message.Message):
     __slots__ = ()
@@ -81,15 +85,17 @@ class GetRuntimeStatsRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class GetRuntimeStatsResponse(_message.Message):
-    __slots__ = ("queue_len", "inflight_requests", "inflight_batches", "busy_executors", "idle_executors")
-    QUEUE_LEN_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("prefill_queue_len", "decode_queue_len", "inflight_requests", "inflight_batches", "busy_executors", "idle_executors")
+    PREFILL_QUEUE_LEN_FIELD_NUMBER: _ClassVar[int]
+    DECODE_QUEUE_LEN_FIELD_NUMBER: _ClassVar[int]
     INFLIGHT_REQUESTS_FIELD_NUMBER: _ClassVar[int]
     INFLIGHT_BATCHES_FIELD_NUMBER: _ClassVar[int]
     BUSY_EXECUTORS_FIELD_NUMBER: _ClassVar[int]
     IDLE_EXECUTORS_FIELD_NUMBER: _ClassVar[int]
-    queue_len: int
+    prefill_queue_len: int
+    decode_queue_len: int
     inflight_requests: int
     inflight_batches: int
     busy_executors: int
     idle_executors: int
-    def __init__(self, queue_len: _Optional[int] = ..., inflight_requests: _Optional[int] = ..., inflight_batches: _Optional[int] = ..., busy_executors: _Optional[int] = ..., idle_executors: _Optional[int] = ...) -> None: ...
+    def __init__(self, prefill_queue_len: _Optional[int] = ..., decode_queue_len: _Optional[int] = ..., inflight_requests: _Optional[int] = ..., inflight_batches: _Optional[int] = ..., busy_executors: _Optional[int] = ..., idle_executors: _Optional[int] = ...) -> None: ...

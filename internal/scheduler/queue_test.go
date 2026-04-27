@@ -9,7 +9,7 @@ import (
 )
 
 func TestQueueEnqueueDequeueFIFO(t *testing.T) {
-	q := NewQueue(&conf.Conf{
+	q := NewPrefillQueue(&conf.Conf{
 		Server: conf.ServerConf{
 			QueueLength: 3,
 		},
@@ -38,7 +38,7 @@ func TestQueueEnqueueDequeueFIFO(t *testing.T) {
 }
 
 func TestQueueFull(t *testing.T) {
-	q := NewQueue(&conf.Conf{
+	q := NewPrefillQueue(&conf.Conf{
 		Server: conf.ServerConf{
 			QueueLength: 1,
 		},
@@ -50,7 +50,7 @@ func TestQueueFull(t *testing.T) {
 }
 
 func TestQueueDequeueEmptyOrZero(t *testing.T) {
-	q := NewQueue(&conf.Conf{
+	q := NewPrefillQueue(&conf.Conf{
 		Server: conf.ServerConf{
 			QueueLength: 2,
 		},

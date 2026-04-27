@@ -71,7 +71,8 @@ func (a *adminService) Health(ctx context.Context, request *v1.HealthRequest) (*
 func (a *adminService) GetRuntimeStats(ctx context.Context, request *v1.GetRuntimeStatsRequest) (*v1.GetRuntimeStatsResponse, error) {
 	snapshot := a.metrics.Snapshot()
 	return &v1.GetRuntimeStatsResponse{
-		QueueLen:         uint32(snapshot.QueueLength),
+		PrefillQueueLen:  uint32(snapshot.PrefillQueueLength),
+		DecodeQueueLen:   uint32(snapshot.DecodeQueueLength),
 		InflightRequests: uint32(snapshot.InflightRequests),
 		InflightBatches:  uint32(snapshot.InflightBatches),
 		BusyExecutors:    uint32(snapshot.BusyExecutors),

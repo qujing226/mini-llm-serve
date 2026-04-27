@@ -15,6 +15,7 @@ type RequestLifecycleStateManager interface {
 	Create(req *model.Request) (*model.WorkItem, error)
 	Get(requestId string) (*model.Request, error)
 	Cancel(requestId string)
+	Fail(requestId string, err error)
 	OnEvent(e *model.Event) ([]*model.WorkItem, error)
 	Subscribe(requestId string) (<-chan *model.Event, error)
 	Finish(requestId string)
@@ -71,7 +72,7 @@ func (r *requestLifecycleStateManager) Get(requestId string) (*model.Request, er
 	if req, exists := r.requests[requestId]; exists {
 		return req, nil
 	}
-	return nil, errors.New(errors.CodeInvalidArgument, "request already exists")
+	return nil, errors.New(errors.CodeInvalidArgument, "request does not exist")
 }
 
 func (r *requestLifecycleStateManager) Cancel(requestId string) {
@@ -81,8 +82,32 @@ func (r *requestLifecycleStateManager) Cancel(requestId string) {
 		req.Phase = model.RequestPhaseCanceled
 		delete(r.requests, requestId)
 	}
-	if _, exists := r.subscribeCh[requestId]; exists {
+	if subCh, exists := r.subscribeCh[requestId]; exists {
 		delete(r.subscribeCh, requestId)
+		close(subCh)
+	}
+}
+
+func (r *requestLifecycleStateManager) Fail(requestId string, err error) {
+	r.mu.Lock()
+	if req, exists := r.requests[requestId]; exists {
+		req.Phase = model.RequestPhaseFailed
+		delete(r.requests, requestId)
+	}
+	subCh, exists := r.subscribeCh[requestId]
+	delete(r.subscribeCh, requestId)
+	r.mu.Unlock()
+	if exists {
+		subCh <- &model.Event{
+			WorkId:       utils.MustGenerateUUIDv7(),
+			RequestId:    requestId,
+			Type:         v1.EventTypeRequestFailed,
+			Done:         true,
+			FinishReason: v1.FinishReasonError,
+			At:           time.Now(),
+			Err:          err,
+		}
+		close(subCh)
 	}
 }
 
@@ -184,7 +209,8 @@ func (r *requestLifecycleStateManager) Finish(requestId string) {
 		req.Phase = model.RequestPhaseFinished
 		delete(r.requests, requestId)
 	}
-	if _, exists := r.subscribeCh[requestId]; exists {
+	if subCh, exists := r.subscribeCh[requestId]; exists {
 		delete(r.subscribeCh, requestId)
+		close(subCh)
 	}
 }

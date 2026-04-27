@@ -18,7 +18,6 @@ type Request struct {
 
 	PromptTokens    uint32
 	GeneratedTokens uint32
-	ChunkTokens     uint32
 
 	Phase        RequestPhase
 	FinishReason v1.FinishReason
@@ -45,6 +44,7 @@ type GenerateOutput struct {
 	BatchID      string
 	BatchSize    uint32
 	ExecutorId   string
+	Err          error
 }
 
 type WorkItem struct {
@@ -88,9 +88,10 @@ type Event struct {
 }
 
 type RuntimeStats struct {
-	QueueLength      uint64
-	InflightRequests uint64
-	InflightBatches  uint64
-	BusyExecutors    uint64
-	IdleExecutors    uint64
+	PrefillQueueLength uint64
+	DecodeQueueLength  uint64
+	InflightRequests   uint64
+	InflightBatches    uint64
+	BusyExecutors      uint64
+	IdleExecutors      uint64
 }

@@ -2,12 +2,12 @@ package scheduler
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/internal/conf"
+	"github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"github.com/qujing226/mini-llm-serve/internal/state"
@@ -19,38 +19,39 @@ import (
 type Scheduler interface {
 	Enqueue(input *model.WorkItem) error
 	Batch(ctx context.Context)
-	ExecuteNow(ctx context.Context, input *model.WorkItem) error
 }
 
 type scheduler struct {
 	l *zap.SugaredLogger
 
-	queue          Queue
+	prefillQueue   Queue
+	decodeQueue    Queue
 	requestManager state.RequestLifecycleStateManager
 	worker         worker.Worker
 	batchSize      uint64
 
-	queueLength      atomic.Uint64
 	inflightRequests atomic.Uint64
 	inflightBatches  atomic.Uint64
 
 	ticker *time.Ticker
 
-	patchExecuteChan chan struct{}
+	prefillPatchExecuteChan chan struct{}
+	decodePatchExecuteChan  chan struct{}
 
-	mu      sync.RWMutex
 	metrics metrics.Metrics
 }
 
-func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, q Queue, worker worker.Worker, r state.RequestLifecycleStateManager, metrics metrics.Metrics) Scheduler {
+func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, prefillQ Queue, decodeQ Queue, worker worker.Worker, r state.RequestLifecycleStateManager, metrics metrics.Metrics) Scheduler {
 	s := &scheduler{
-		l:                l,
-		queue:            q,
-		worker:           worker,
-		requestManager:   r,
-		batchSize:        cfg.Server.BatchSize,
-		ticker:           time.NewTicker(cfg.Server.BatchRoundInterval()),
-		patchExecuteChan: make(chan struct{}, 1),
+		l:                       l,
+		prefillQueue:            prefillQ,
+		decodeQueue:             decodeQ,
+		worker:                  worker,
+		requestManager:          r,
+		batchSize:               cfg.Server.BatchSize,
+		ticker:                  time.NewTicker(cfg.Server.BatchRoundInterval()),
+		prefillPatchExecuteChan: make(chan struct{}, 1),
+		decodePatchExecuteChan:  make(chan struct{}, 1),
 
 		metrics: metrics,
 	}
@@ -58,118 +59,136 @@ func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, q Queue, worker worker.W
 }
 
 func (s *scheduler) Enqueue(input *model.WorkItem) error {
-	// metrics: set inflight requests
-	if input.Phase == v1.WorkPhasePrefill {
-		s.metrics.SetInflightRequests(int(s.inflightRequests.Add(1)))
+	input.EnqueuedAt = time.Now()
+	var err error
+	switch input.Phase {
+	case v1.WorkPhasePrefill:
+		err = s.prefillQueue.Enqueue(input)
+		if err == nil {
+			// metrics: set inflight requests
+			s.metrics.SetInflightRequests(int(s.inflightRequests.Add(1)))
+			// metrics: prefillQueue queueLength
+			s.metrics.SetPrefillQueueLength(int(s.prefillQueue.Length()))
+			if s.prefillQueue.Length() >= s.batchSize {
+				s.signal(s.prefillPatchExecuteChan)
+			}
+		}
+	case v1.WorkPhaseDecode:
+		err = s.decodeQueue.Enqueue(input)
+		if err == nil {
+			s.metrics.SetDecodeQueueLength(int(s.decodeQueue.Length()))
+			if s.decodeQueue.Length() >= s.batchSize {
+				s.signal(s.decodePatchExecuteChan)
+			}
+		}
+	default:
+		return errors.New(errors.CodeInvalidArgument, "invalid phase for enqueue")
 	}
 
-	err := s.queue.Enqueue(input)
 	if err != nil {
 		// metrics: injected request
 		s.metrics.IncQueueRejected()
+		s.requestManager.Fail(input.RequestId, err)
+		s.l.Errorw("enqueue failed", "phase", input.Phase, "error", err)
 		return err
 	}
 
-	// metrics: queue queueLength
-	s.metrics.SetQueueLength(int(s.queue.Length()))
-
-	s.queueLength.Add(1)
-	if s.queueLength.CompareAndSwap(s.batchSize, 0) {
-		s.patchExecuteChan <- struct{}{}
-	}
 	return nil
-}
-
-func (s *scheduler) ExecuteNow(ctx context.Context, input *model.WorkItem) error {
-	panic("implement me")
-	//task, err := WorkItemToTask(input)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//res, err := s.worker.One(ctx, task)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//return TaskToDomain(res), nil
 }
 
 func (s *scheduler) Batch(ctx context.Context) {
 	defer s.ticker.Stop()
-	go s.dispatch(ctx)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-s.ticker.C:
-			s.patchExecute(ctx)
-		case <-s.patchExecuteChan:
-			s.patchExecute(ctx)
+			s.patchExecute(ctx, v1.WorkPhaseDecode)
+			s.patchExecute(ctx, v1.WorkPhasePrefill)
+		case <-s.prefillPatchExecuteChan:
+			s.patchExecute(ctx, v1.WorkPhasePrefill)
+		case <-s.decodePatchExecuteChan:
+			s.patchExecute(ctx, v1.WorkPhaseDecode)
 		}
 	}
 }
 
-func (s *scheduler) patchExecute(ctx context.Context) {
-	tasks, err := s.queue.Dequeue(s.batchSize)
-	// metrics: update queue queueLength
-	s.metrics.SetQueueLength(int(s.queue.Length()))
-
+func (s *scheduler) patchExecute(ctx context.Context, phase v1.WorkPhase) {
+	var workItems []*model.WorkItem
+	var err error
+	switch phase {
+	case v1.WorkPhasePrefill:
+		workItems, err = s.prefillQueue.Dequeue(s.batchSize)
+		s.metrics.SetPrefillQueueLength(int(s.prefillQueue.Length()))
+	case v1.WorkPhaseDecode:
+		workItems, err = s.decodeQueue.Dequeue(s.batchSize)
+		s.metrics.SetDecodeQueueLength(int(s.decodeQueue.Length()))
+	default:
+		s.l.Errorw("invalid work phase", "phase", phase)
+		return
+	}
 	if err != nil {
-		s.l.Errorf("failed to dequeue tasks: %v", err)
+		s.l.Errorf("failed to dequeue workItems: %v", err)
+		return
 	}
-	taskLength := len(tasks)
-	if taskLength > 0 {
-		// metrics: observe batch batchSize & inflight batch number
-		s.metrics.ObserveBatchSize(taskLength)
-		s.metrics.SetInflightBatches(int(s.inflightBatches.Add(1)))
 
-		bid, err := utils.GenerateUUIDv7()
-		if err != nil {
-			s.l.Errorf("failed to generate batch id: %v", err)
+	taskLength := len(workItems)
+	if taskLength <= 0 {
+		return
+	}
+
+	// metrics: observe batch batchSize & inflight batch number
+	s.metrics.ObserveBatchSize(taskLength, phase)
+	s.metrics.SetInflightBatches(int(s.inflightBatches.Add(1)))
+
+	bid, err := utils.GenerateUUIDv7()
+	if err != nil {
+		s.l.Errorf("failed to generate batch id: %v", err)
+	}
+	go func() {
+		batchCreateAt := time.Now()
+		// metrics: observe prefillQueue wait ms
+		for _, task := range workItems {
+			s.metrics.ObserveQueueWait(batchCreateAt.Sub(task.EnqueuedAt).Seconds())
 		}
-		go func() {
-			batchCreateAt := time.Now()
-			// metrics: observe queue wait ms
-			for _, task := range tasks {
-				s.metrics.ObserveQueueWait(batchCreateAt.Sub(task.EnqueuedAt).Seconds())
+
+		eventList, err := s.worker.Batch(ctx, &model.Batch{
+			BatchID:   bid,
+			BatchSize: uint64(len(workItems)),
+			Phase:     phase,
+			CreateAt:  batchCreateAt,
+			Items:     workItems,
+		})
+
+		s.metrics.SetInflightBatches(int(s.inflightBatches.Add(^uint64(0))))
+
+		if err != nil {
+			for _, e := range workItems {
+				s.l.Errorf("failed to inflight task: %v", e)
+				s.requestManager.Fail(e.RequestId, err)
 			}
-
-			eventList, err := s.worker.Batch(ctx, &model.Batch{
-				BatchID:   bid,
-				BatchSize: uint64(len(tasks)),
-				CreateAt:  batchCreateAt,
-				Items:     tasks,
-			})
-
-			s.metrics.SetInflightBatches(int(s.inflightBatches.Add(^uint64(0))))
-
-			if err != nil {
-				s.l.Errorf("failed to execute batch: %v", err)
-			}
-			for _, event := range eventList {
-				nextItems, err := s.requestManager.OnEvent(event)
-				if err != nil {
-					s.l.Errorf("failed to execute event: %v", err)
-				}
-				for _, nextItem := range nextItems {
-					err = s.Enqueue(nextItem)
-				}
-
-				// metrics: observe every task execution cost and executorId
-				s.metrics.ObserveExecution(event.Timing.Execution.Seconds(), event.ExecutorId)
-			}
-		}()
-	}
-	s.queueLength.Add(-uint64(taskLength))
-}
-
-func (s *scheduler) dispatch(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			s.l.Info("context canceled")
+			s.l.Errorf("failed to execute batch: %v, batchId: %s", err, bid)
 			return
 		}
+		for _, event := range eventList {
+			// generated next task
+			nextItems, err := s.requestManager.OnEvent(event)
+			if err != nil {
+				s.l.Errorf("failed to execute event: %v", err)
+			}
+			for _, nextItem := range nextItems {
+				err = s.Enqueue(nextItem)
+			}
+
+			// metrics: observe every task execution cost and executorId
+			s.metrics.ObserveExecution(event.Timing.Execution.Seconds(), event.ExecutorId)
+		}
+	}()
+}
+
+func (s *scheduler) signal(c chan struct{}) {
+	select {
+	case c <- struct{}{}:
+	default:
 	}
 }

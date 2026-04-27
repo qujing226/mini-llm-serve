@@ -179,6 +179,7 @@ func (i *inferenceService) Generate(ctx context.Context, request *v1.GenerateReq
 				out.Timing = msg.Timing
 				out.FinishReason = msg.FinishReason
 				out.Index = msg.Index
+				out.Err = msg.Err
 				goto ret
 			}
 
@@ -235,6 +236,7 @@ func (i *inferenceService) GenerateStream(ctx context.Context, request *v1.Gener
 				status = string(appErrors.CodeOf(sendErr))
 				return appErrors.ToConnectError(sendErr)
 			}
+
 			if msg.Done {
 				return nil
 			}

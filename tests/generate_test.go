@@ -19,20 +19,11 @@ func TestGenerate(t *testing.T) {
 	requireServer(t, "127.0.0.1:8800")
 	c := client.NewClient([]string{"http://127.0.0.1:8800"})
 	var wg sync.WaitGroup
-	errCh := make(chan error, 100)
-	go func() {
-		for {
-			select {
-			case err := <-errCh:
-				if err == nil {
-					return
-				}
-				t.Error(err)
-			}
-		}
-	}()
 
-	for i := 0; i < 100; i++ {
+	msgNumber := 100
+	errCh := make(chan error, msgNumber)
+
+	for i := 0; i < msgNumber; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -56,6 +47,9 @@ func TestGenerate(t *testing.T) {
 	}
 	wg.Wait()
 	close(errCh)
+	for err := range errCh {
+		require.NoError(t, err)
+	}
 	resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
 		RequestId: "002",
 		Model:     "deepseek-v4",
