@@ -127,28 +127,31 @@ func (WorkPhase) EnumDescriptor() ([]byte, []int) {
 type EventType int32
 
 const (
-	EventType_EVENT_TYPE_PREFILL_FINISHED EventType = 0
-	EventType_EVENT_TYPE_DECODE_CHUNK     EventType = 1
-	EventType_EVENT_TYPE_REQUEST_FINISHED EventType = 2
-	EventType_EVENT_TYPE_REQUEST_FAILED   EventType = 3
-	EventType_EVENT_TYPE_REQUEST_CANCELED EventType = 4
+	EventType_EVENT_TYPE_PREFILL_CHUNK    EventType = 0
+	EventType_EVENT_TYPE_PREFILL_FINISHED EventType = 1
+	EventType_EVENT_TYPE_DECODE_CHUNK     EventType = 2
+	EventType_EVENT_TYPE_REQUEST_FINISHED EventType = 3
+	EventType_EVENT_TYPE_REQUEST_FAILED   EventType = 4
+	EventType_EVENT_TYPE_REQUEST_CANCELED EventType = 5
 )
 
 // Enum value maps for EventType.
 var (
 	EventType_name = map[int32]string{
-		0: "EVENT_TYPE_PREFILL_FINISHED",
-		1: "EVENT_TYPE_DECODE_CHUNK",
-		2: "EVENT_TYPE_REQUEST_FINISHED",
-		3: "EVENT_TYPE_REQUEST_FAILED",
-		4: "EVENT_TYPE_REQUEST_CANCELED",
+		0: "EVENT_TYPE_PREFILL_CHUNK",
+		1: "EVENT_TYPE_PREFILL_FINISHED",
+		2: "EVENT_TYPE_DECODE_CHUNK",
+		3: "EVENT_TYPE_REQUEST_FINISHED",
+		4: "EVENT_TYPE_REQUEST_FAILED",
+		5: "EVENT_TYPE_REQUEST_CANCELED",
 	}
 	EventType_value = map[string]int32{
-		"EVENT_TYPE_PREFILL_FINISHED": 0,
-		"EVENT_TYPE_DECODE_CHUNK":     1,
-		"EVENT_TYPE_REQUEST_FINISHED": 2,
-		"EVENT_TYPE_REQUEST_FAILED":   3,
-		"EVENT_TYPE_REQUEST_CANCELED": 4,
+		"EVENT_TYPE_PREFILL_CHUNK":    0,
+		"EVENT_TYPE_PREFILL_FINISHED": 1,
+		"EVENT_TYPE_DECODE_CHUNK":     2,
+		"EVENT_TYPE_REQUEST_FINISHED": 3,
+		"EVENT_TYPE_REQUEST_FAILED":   4,
+		"EVENT_TYPE_REQUEST_CANCELED": 5,
 	}
 )
 
@@ -387,13 +390,14 @@ const file_mini_llm_serve_v1_core_proto_rawDesc = "" +
 	"\x12WORK_PHASE_PREFILL\x10\x00\x12\x15\n" +
 	"\x11WORK_PHASE_DECODE\x10\x01\x1aE\xa0\xe3,\x01\xaa\xe3,\n" +
 	"WorkPhase_\xb0\xe3,\x01\xca\xe3,\x03Str\xd2\xe3,\vWORK_PHASE_\xda\xe3,\x03WR_\xca\xe4,\n" +
-	"WorkPhase_\xd0\xe4,\x01*\xf1\x01\n" +
-	"\tEventType\x12\x1f\n" +
-	"\x1bEVENT_TYPE_PREFILL_FINISHED\x10\x00\x12\x1b\n" +
-	"\x17EVENT_TYPE_DECODE_CHUNK\x10\x01\x12\x1f\n" +
-	"\x1bEVENT_TYPE_REQUEST_FINISHED\x10\x02\x12\x1d\n" +
-	"\x19EVENT_TYPE_REQUEST_FAILED\x10\x03\x12\x1f\n" +
-	"\x1bEVENT_TYPE_REQUEST_CANCELED\x10\x04\x1aE\xa0\xe3,\x01\xaa\xe3,\n" +
+	"WorkPhase_\xd0\xe4,\x01*\x8f\x02\n" +
+	"\tEventType\x12\x1c\n" +
+	"\x18EVENT_TYPE_PREFILL_CHUNK\x10\x00\x12\x1f\n" +
+	"\x1bEVENT_TYPE_PREFILL_FINISHED\x10\x01\x12\x1b\n" +
+	"\x17EVENT_TYPE_DECODE_CHUNK\x10\x02\x12\x1f\n" +
+	"\x1bEVENT_TYPE_REQUEST_FINISHED\x10\x03\x12\x1d\n" +
+	"\x19EVENT_TYPE_REQUEST_FAILED\x10\x04\x12\x1f\n" +
+	"\x1bEVENT_TYPE_REQUEST_CANCELED\x10\x05\x1aE\xa0\xe3,\x01\xaa\xe3,\n" +
 	"EventType_\xb0\xe3,\x01\xca\xe3,\x03Str\xd2\xe3,\vEVENT_TYPE_\xda\xe3,\x03ET_\xca\xe4,\n" +
 	"EventType_\xd0\xe4,\x01B\xce\x01\n" +
 	"\x15com.mini_llm_serve.v1B\tCoreProtoP\x01ZMgithub.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1;mini_llm_servev1\xa2\x02\x03MXX\xaa\x02\x0fMiniLlmServe.V1\xca\x02\x0fMiniLlmServe\\V1\xe2\x02\x1bMiniLlmServe\\V1\\GPBMetadata\xea\x02\x10MiniLlmServe::V1b\x06proto3"

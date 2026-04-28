@@ -74,15 +74,16 @@ func (x *ExecuteBatchRequest) GetItems() []*ExecuteItem {
 }
 
 type ExecuteItem struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	WorkId              string                 `protobuf:"bytes,1,opt,name=work_id,json=workId,proto3" json:"work_id,omitempty"`
-	RequestId           string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	Phase               WorkPhase              `protobuf:"varint,3,opt,name=phase,proto3,enum=mini_llm_serve.v1.WorkPhase" json:"phase,omitempty"`
-	Prompt              string                 `protobuf:"bytes,4,opt,name=prompt,proto3" json:"prompt,omitempty"`
-	MaxTokens           uint32                 `protobuf:"varint,5,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
-	DecodeTokensPlanned uint32                 `protobuf:"varint,6,opt,name=decode_tokens_planned,json=decodeTokensPlanned,proto3" json:"decode_tokens_planned,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkId        string                 `protobuf:"bytes,1,opt,name=work_id,json=workId,proto3" json:"work_id,omitempty"`
+	RequestId     string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Phase         WorkPhase              `protobuf:"varint,3,opt,name=phase,proto3,enum=mini_llm_serve.v1.WorkPhase" json:"phase,omitempty"`
+	Prompt        string                 `protobuf:"bytes,4,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	MaxTokens     uint32                 `protobuf:"varint,5,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	PrefillOffset uint32                 `protobuf:"varint,6,opt,name=prefill_offset,json=prefillOffset,proto3" json:"prefill_offset,omitempty"`
+	PrefillTokens uint32                 `protobuf:"varint,7,opt,name=prefill_tokens,json=prefillTokens,proto3" json:"prefill_tokens,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExecuteItem) Reset() {
@@ -150,9 +151,16 @@ func (x *ExecuteItem) GetMaxTokens() uint32 {
 	return 0
 }
 
-func (x *ExecuteItem) GetDecodeTokensPlanned() uint32 {
+func (x *ExecuteItem) GetPrefillOffset() uint32 {
 	if x != nil {
-		return x.DecodeTokensPlanned
+		return x.PrefillOffset
+	}
+	return 0
+}
+
+func (x *ExecuteItem) GetPrefillTokens() uint32 {
+	if x != nil {
+		return x.PrefillTokens
 	}
 	return 0
 }
@@ -332,7 +340,7 @@ const file_mini_llm_serve_v1_execute_proto_rawDesc = "" +
 	"\x1fmini_llm_serve/v1/execute.proto\x12\x11mini_llm_serve.v1\x1a\x1cmini_llm_serve/v1/core.proto\"f\n" +
 	"\x13ExecuteBatchRequest\x12\x19\n" +
 	"\bbatch_id\x18\x01 \x01(\tR\abatchId\x124\n" +
-	"\x05items\x18\x02 \x03(\v2\x1e.mini_llm_serve.v1.ExecuteItemR\x05items\"\xe4\x01\n" +
+	"\x05items\x18\x02 \x03(\v2\x1e.mini_llm_serve.v1.ExecuteItemR\x05items\"\xfe\x01\n" +
 	"\vExecuteItem\x12\x17\n" +
 	"\awork_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n" +
 	"\n" +
@@ -340,8 +348,9 @@ const file_mini_llm_serve_v1_execute_proto_rawDesc = "" +
 	"\x05phase\x18\x03 \x01(\x0e2\x1c.mini_llm_serve.v1.WorkPhaseR\x05phase\x12\x16\n" +
 	"\x06prompt\x18\x04 \x01(\tR\x06prompt\x12\x1d\n" +
 	"\n" +
-	"max_tokens\x18\x05 \x01(\rR\tmaxTokens\x122\n" +
-	"\x15decode_tokens_planned\x18\x06 \x01(\rR\x13decodeTokensPlanned\"\x8e\x01\n" +
+	"max_tokens\x18\x05 \x01(\rR\tmaxTokens\x12%\n" +
+	"\x0eprefill_offset\x18\x06 \x01(\rR\rprefillOffset\x12%\n" +
+	"\x0eprefill_tokens\x18\a \x01(\rR\rprefillTokens\"\x8e\x01\n" +
 	"\x14ExecuteBatchResponse\x12\x19\n" +
 	"\bbatch_id\x18\x01 \x01(\tR\abatchId\x12\x1f\n" +
 	"\vexecutor_id\x18\x02 \x01(\tR\n" +

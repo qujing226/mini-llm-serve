@@ -11,11 +11,11 @@ func ProtoMsgToModel(in *v1.GenerateRequest) (*Request, error) {
 		RequestId:       in.RequestId,
 		Model:           in.Model,
 		Prompt:          in.Prompt,
-		MaxTokens:       in.MaxTokens,
+		MaxTokens:       uint64(in.MaxTokens),
 		Timeout:         time.Duration(int64(in.TimeoutMs)) * time.Millisecond,
 		Deadline:        time.Now().Add(time.Duration(in.TimeoutMs) * time.Millisecond),
 		CacheKey:        in.CacheKey,
-		PromptTokens:    uint32(max(1, len(in.Prompt)/4)),
+		PromptTokens:    uint64(max(1, len(in.Prompt)/4)),
 		GeneratedTokens: 0,
 		Phase:           0,
 		FinishReason:    0,
@@ -31,9 +31,9 @@ func ProtoMsgToModel(in *v1.GenerateRequest) (*Request, error) {
 
 func ModelToProtoMsg(in *GenerateOutput) (*v1.GenerateResponse, error) {
 	usage := &v1.Usage{
-		InputTokens:  in.Usage.InputTokens,
-		OutputTokens: in.Usage.OutputTokens,
-		TotalTokens:  in.Usage.TotalTokens,
+		InputTokens:  uint32(in.Usage.InputTokens),
+		OutputTokens: uint32(in.Usage.OutputTokens),
+		TotalTokens:  uint32(in.Usage.TotalTokens),
 	}
 
 	timing := &v1.Timing{
@@ -65,14 +65,14 @@ func ModelToProtoMsg(in *GenerateOutput) (*v1.GenerateResponse, error) {
 func ModelToProtoMsgStream(in *GenerateOutput) (*v1.GenerateResponseChunk, error) {
 	out := &v1.GenerateResponseChunk{
 		RequestId:    in.RequestId,
-		Index:        in.Index,
+		Index:        uint32(in.Index),
 		DeltaText:    in.DeltaText,
 		Done:         in.Done,
 		FinishReason: in.FinishReason,
 		Usage: &v1.Usage{
-			InputTokens:  in.Usage.InputTokens,
-			OutputTokens: in.Usage.OutputTokens,
-			TotalTokens:  in.Usage.TotalTokens,
+			InputTokens:  uint32(in.Usage.InputTokens),
+			OutputTokens: uint32(in.Usage.OutputTokens),
+			TotalTokens:  uint32(in.Usage.TotalTokens),
 		},
 		ErrorMessage: errorMessage(in.Err),
 	}

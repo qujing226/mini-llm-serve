@@ -43,11 +43,12 @@ enum EventType {
   option (daotl.gen_go_string_consts.name_suffix) = "Str";
   option (daotl.gen_go_string_consts.strip_value_prefix) = "EVENT_TYPE_";
   option (daotl.gen_go_string_consts.value_prefix) = "ET_";
-  EVENT_TYPE_PREFILL_FINISHED = 0;
-  EVENT_TYPE_DECODE_CHUNK = 1;
-  EVENT_TYPE_REQUEST_FINISHED = 2;
-  EVENT_TYPE_REQUEST_FAILED = 3;
-  EVENT_TYPE_REQUEST_CANCELED = 4;
+  EVENT_TYPE_PREFILL_CHUNK = 0;
+  EVENT_TYPE_PREFILL_FINISHED = 1;
+  EVENT_TYPE_DECODE_CHUNK = 2;
+  EVENT_TYPE_REQUEST_FINISHED = 3;
+  EVENT_TYPE_REQUEST_FAILED = 4;
+  EVENT_TYPE_REQUEST_CANCELED = 5;
 }
 
 message Usage {

@@ -149,9 +149,9 @@ func (m *mockExecutor) ExecuteToBatch(batch *model.Batch, resp *v1.ExecuteBatchR
 			DeltaText:  workRes.OutputText,
 			Done:       workRes.Done,
 			Usage: model.Usage{
-				InputTokens:  workRes.InputTokens,
-				OutputTokens: workRes.OutputTokens,
-				TotalTokens:  workRes.InputTokens + workRes.OutputTokens,
+				InputTokens:  uint64(workRes.InputTokens),
+				OutputTokens: uint64(workRes.OutputTokens),
+				TotalTokens:  uint64(workRes.InputTokens + workRes.OutputTokens),
 			},
 			Timing: model.Timing{
 				Queue:     0,
@@ -176,7 +176,10 @@ func nextPhase(item *model.WorkItem, err error) v1.EventType {
 		return v1.EventTypeRequestFailed
 	}
 	if item.Phase == v1.WorkPhasePrefill {
-		return v1.EventTypePrefillFinished
+		if item.PrefillOffset+item.PrefillTokens >= item.PromptTokens {
+			return v1.EventTypePrefillFinished
+		}
+		return v1.EventTypePrefillChunk
 	}
 	if item.Phase == v1.WorkPhaseDecode {
 		return v1.EventTypeDecodeChunk

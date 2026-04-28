@@ -9,22 +9,34 @@ import (
 	"github.com/qujing226/mini-llm-serve/internal/model"
 )
 
+type DecodeQueue interface {
+	Enqueue(t *model.WorkItem) error
+	Dequeue(maxSeqs uint64) ([]*model.WorkItem, uint64)
+	Length() uint64
+	AvailableSpace() uint64
+}
 type decodeQueue struct {
 	mu    sync.Mutex
-	tasks []*model.WorkItem
+	works []*workItemEntry
 	size  uint64
 	round time.Duration
 }
 
-func NewDecodeQueue(cfg *conf.Conf) Queue {
-	length := cfg.Server.QueueLength
+type workItemEntry struct {
+	work    *model.WorkItem
+	deficit uint64
+	quant   uint64
+}
+
+func NewDecodeQueue(cfg *conf.Conf) DecodeQueue {
+	length := cfg.Server.ScheduleConf.QueueConf.QueueLength
 	if length == 0 {
 		length = 100
 	}
 	q := &decodeQueue{
 		size:  length,
-		tasks: make([]*model.WorkItem, 0, length),
-		round: cfg.Server.QueueRoundInterval(),
+		works: make([]*workItemEntry, 0, length),
+		round: cfg.Server.ScheduleConf.QueueConf.QueueRoundInterval(),
 	}
 	return q
 }
@@ -33,37 +45,42 @@ func (q *decodeQueue) Enqueue(t *model.WorkItem) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	if uint64(len(q.tasks)) >= q.size {
+	if uint64(len(q.works)) >= q.size {
 		return errors.New(errors.CodeQueueFull, "decodeQueue is full")
 	}
-	q.tasks = append(q.tasks, t)
+	q.works = append(q.works, &workItemEntry{
+		work:    t,
+		deficit: 0,
+		quant:   0,
+	})
 	return nil
 }
 
-func (q *decodeQueue) Dequeue(n uint64) ([]*model.WorkItem, error) {
+func (q *decodeQueue) Dequeue(maxSeqs uint64) ([]*model.WorkItem, uint64) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-
-	if n == 0 || len(q.tasks) == 0 {
-		return nil, nil
+	if maxSeqs == 0 {
+		return nil, 0
 	}
-	if n > uint64(len(q.tasks)) {
-		n = uint64(len(q.tasks))
+	workList := make([]*model.WorkItem, 0, maxSeqs)
+	for i := uint64(0); i < maxSeqs; i++ {
+		if len(q.works) == 0 {
+			break
+		}
+		workList = append(workList, q.works[0].work)
+		q.works = q.works[1:]
 	}
-
-	taskList := append([]*model.WorkItem(nil), q.tasks[:n]...)
-	q.tasks = q.tasks[n:]
-	return taskList, nil
+	return workList, uint64(len(workList))
 }
 
 func (q *decodeQueue) Length() uint64 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	return uint64(len(q.tasks))
+	return uint64(len(q.works))
 }
 
 func (q *decodeQueue) AvailableSpace() uint64 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	return q.size - uint64(len(q.tasks))
+	return q.size - uint64(len(q.works))
 }

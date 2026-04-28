@@ -16,20 +16,22 @@ class ExecuteBatchRequest(_message.Message):
     def __init__(self, batch_id: _Optional[str] = ..., items: _Optional[_Iterable[_Union[ExecuteItem, _Mapping]]] = ...) -> None: ...
 
 class ExecuteItem(_message.Message):
-    __slots__ = ("work_id", "request_id", "phase", "prompt", "max_tokens", "decode_tokens_planned")
+    __slots__ = ("work_id", "request_id", "phase", "prompt", "max_tokens", "prefill_offset", "prefill_tokens")
     WORK_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     MAX_TOKENS_FIELD_NUMBER: _ClassVar[int]
-    DECODE_TOKENS_PLANNED_FIELD_NUMBER: _ClassVar[int]
+    PREFILL_OFFSET_FIELD_NUMBER: _ClassVar[int]
+    PREFILL_TOKENS_FIELD_NUMBER: _ClassVar[int]
     work_id: str
     request_id: str
     phase: _core_pb2.WorkPhase
     prompt: str
     max_tokens: int
-    decode_tokens_planned: int
-    def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., phase: _Optional[_Union[_core_pb2.WorkPhase, str]] = ..., prompt: _Optional[str] = ..., max_tokens: _Optional[int] = ..., decode_tokens_planned: _Optional[int] = ...) -> None: ...
+    prefill_offset: int
+    prefill_tokens: int
+    def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., phase: _Optional[_Union[_core_pb2.WorkPhase, str]] = ..., prompt: _Optional[str] = ..., max_tokens: _Optional[int] = ..., prefill_offset: _Optional[int] = ..., prefill_tokens: _Optional[int] = ...) -> None: ...
 
 class ExecuteBatchResponse(_message.Message):
     __slots__ = ("batch_id", "executor_id", "results")

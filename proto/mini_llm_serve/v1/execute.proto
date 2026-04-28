@@ -19,7 +19,8 @@ message ExecuteItem {
   WorkPhase phase = 3;
   string prompt = 4;
   uint32 max_tokens = 5;
-  uint32 decode_tokens_planned = 6;
+  uint32 prefill_offset = 6;
+  uint32 prefill_tokens = 7;
 }
 
 message ExecuteBatchResponse{

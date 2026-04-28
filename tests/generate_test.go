@@ -55,7 +55,7 @@ func TestGenerate(t *testing.T) {
 		Model:     "deepseek-v4",
 		Prompt:    "hello world",
 		MaxTokens: 8,
-		TimeoutMs: 3000,
+		TimeoutMs: 10000,
 		Labels:    nil,
 	})
 	require.NoError(t, err)

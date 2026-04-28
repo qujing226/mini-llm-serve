@@ -18,19 +18,32 @@ type Conf struct {
 }
 
 type ServerConf struct {
-	Address            string `koanf:"address"`
-	AdminPort          uint64 `koanf:"adminPort"`
-	QueueRoundTime     uint64 `koanf:"queueRoundTime"`
-	QueueLength        uint64 `koanf:"queueLength"`
-	BatchSize          uint64 `koanf:"batchSize"`
-	BatchRoundDuration uint64 `koanf:"batchRoundDuration"`
+	Address      string `koanf:"address"`
+	AdminPort    uint64 `koanf:"adminPort"`
+	ScheduleConf ScheduleConf
 }
 
-func (s ServerConf) QueueRoundInterval() time.Duration {
+type ScheduleConf struct {
+	QueueConf          QueueConf
+	BatchRoundDuration uint64 `koanf:"batchRoundDuration"`
+
+	MaxBatchSeq               uint64 `koanf:"maxBatchSeqs"`
+	MaxBatchTokens            uint64 `koanf:"maxBatchTokens"`
+	LongPrefillTokenThreshold uint64 `koanf:"longPrefillTokenThreshold"`
+	MaxPartialPrefills        uint64 `koanf:"maxPartialPrefills"`
+	MaxLongPartialPrefills    uint64 `koanf:"maxLongPartialPrefills"`
+}
+
+type QueueConf struct {
+	QueueLength    uint64 `koanf:"queueLength"`
+	QueueRoundTime uint64 `koanf:"queueRoundTime"`
+}
+
+func (s QueueConf) QueueRoundInterval() time.Duration {
 	return time.Duration(s.QueueRoundTime) * time.Millisecond
 }
 
-func (s ServerConf) BatchRoundInterval() time.Duration {
+func (s ScheduleConf) BatchRoundInterval() time.Duration {
 	return time.Duration(s.BatchRoundDuration) * time.Millisecond
 }
 

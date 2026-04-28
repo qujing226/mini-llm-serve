@@ -24,11 +24,18 @@ type Scheduler interface {
 type scheduler struct {
 	l *zap.SugaredLogger
 
-	prefillQueue   Queue
-	decodeQueue    Queue
+	maxBatchSeqs           uint64
+	maxBatchTokens         uint64
+	maxPartialPrefills     uint64
+	maxLongPartialPrefills uint64
+	longPrefillThreshold   uint64
+
+	prefillQueueSmall PrefillQueue
+	prefillQueueLarge PrefillQueue
+	decodeQueue       DecodeQueue
+
 	requestManager state.RequestLifecycleStateManager
 	worker         worker.Worker
-	batchSize      uint64
 
 	inflightRequests atomic.Uint64
 	inflightBatches  atomic.Uint64
@@ -41,15 +48,21 @@ type scheduler struct {
 	metrics metrics.Metrics
 }
 
-func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, prefillQ Queue, decodeQ Queue, worker worker.Worker, r state.RequestLifecycleStateManager, metrics metrics.Metrics) Scheduler {
+func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, prefillQS PrefillQueue, prefillQL PrefillQueue, decodeQ DecodeQueue, worker worker.Worker, r state.RequestLifecycleStateManager, metrics metrics.Metrics) Scheduler {
 	s := &scheduler{
-		l:                       l,
-		prefillQueue:            prefillQ,
+		l:                      l,
+		maxBatchSeqs:           cfg.Server.ScheduleConf.MaxBatchSeq,
+		maxBatchTokens:         cfg.Server.ScheduleConf.MaxBatchTokens,
+		maxPartialPrefills:     cfg.Server.ScheduleConf.MaxPartialPrefills,
+		maxLongPartialPrefills: cfg.Server.ScheduleConf.MaxLongPartialPrefills,
+		longPrefillThreshold:   cfg.Server.ScheduleConf.LongPrefillTokenThreshold,
+
+		prefillQueueSmall:       prefillQS,
+		prefillQueueLarge:       prefillQL,
 		decodeQueue:             decodeQ,
 		worker:                  worker,
 		requestManager:          r,
-		batchSize:               cfg.Server.BatchSize,
-		ticker:                  time.NewTicker(cfg.Server.BatchRoundInterval()),
+		ticker:                  time.NewTicker(cfg.Server.ScheduleConf.BatchRoundInterval()),
 		prefillPatchExecuteChan: make(chan struct{}, 1),
 		decodePatchExecuteChan:  make(chan struct{}, 1),
 
@@ -63,13 +76,18 @@ func (s *scheduler) Enqueue(input *model.WorkItem) error {
 	var err error
 	switch input.Phase {
 	case v1.WorkPhasePrefill:
-		err = s.prefillQueue.Enqueue(input)
+		if input.PromptTokens <= s.longPrefillThreshold {
+			err = s.prefillQueueSmall.Enqueue(input)
+		} else {
+			err = s.prefillQueueLarge.Enqueue(input)
+		}
 		if err == nil {
 			// metrics: set inflight requests
 			s.metrics.SetInflightRequests(int(s.inflightRequests.Add(1)))
 			// metrics: prefillQueue queueLength
-			s.metrics.SetPrefillQueueLength(int(s.prefillQueue.Length()))
-			if s.prefillQueue.Length() >= s.batchSize {
+			queueLength := s.prefillQueueSmall.Length() + s.prefillQueueLarge.Length()
+			s.metrics.SetPrefillQueueLength(int(queueLength))
+			if queueLength >= s.maxBatchSeqs {
 				s.signal(s.prefillPatchExecuteChan)
 			}
 		}
@@ -77,7 +95,7 @@ func (s *scheduler) Enqueue(input *model.WorkItem) error {
 		err = s.decodeQueue.Enqueue(input)
 		if err == nil {
 			s.metrics.SetDecodeQueueLength(int(s.decodeQueue.Length()))
-			if s.decodeQueue.Length() >= s.batchSize {
+			if s.decodeQueue.Length() >= s.maxBatchSeqs {
 				s.signal(s.decodePatchExecuteChan)
 			}
 		}
@@ -103,42 +121,28 @@ func (s *scheduler) Batch(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-s.ticker.C:
-			s.patchExecute(ctx, v1.WorkPhaseDecode)
-			s.patchExecute(ctx, v1.WorkPhasePrefill)
+			s.patchExecute(ctx)
+			s.patchExecute(ctx)
 		case <-s.prefillPatchExecuteChan:
-			s.patchExecute(ctx, v1.WorkPhasePrefill)
+			s.patchExecute(ctx)
 		case <-s.decodePatchExecuteChan:
-			s.patchExecute(ctx, v1.WorkPhaseDecode)
+			s.patchExecute(ctx)
 		}
 	}
 }
 
-func (s *scheduler) patchExecute(ctx context.Context, phase v1.WorkPhase) {
-	var workItems []*model.WorkItem
-	var err error
-	switch phase {
-	case v1.WorkPhasePrefill:
-		workItems, err = s.prefillQueue.Dequeue(s.batchSize)
-		s.metrics.SetPrefillQueueLength(int(s.prefillQueue.Length()))
-	case v1.WorkPhaseDecode:
-		workItems, err = s.decodeQueue.Dequeue(s.batchSize)
-		s.metrics.SetDecodeQueueLength(int(s.decodeQueue.Length()))
-	default:
-		s.l.Errorw("invalid work phase", "phase", phase)
-		return
-	}
-	if err != nil {
-		s.l.Errorf("failed to dequeue workItems: %v", err)
-		return
-	}
+func (s *scheduler) patchExecute(ctx context.Context) {
+	var (
+		err error
+	)
 
-	taskLength := len(workItems)
+	workItems, taskLength := s.pickBatch()
 	if taskLength <= 0 {
 		return
 	}
 
 	// metrics: observe batch batchSize & inflight batch number
-	s.metrics.ObserveBatchSize(taskLength, phase)
+	s.metrics.ObserveBatchSize(taskLength)
 	s.metrics.SetInflightBatches(int(s.inflightBatches.Add(1)))
 
 	bid, err := utils.GenerateUUIDv7()
@@ -155,7 +159,6 @@ func (s *scheduler) patchExecute(ctx context.Context, phase v1.WorkPhase) {
 		eventList, err := s.worker.Batch(ctx, &model.Batch{
 			BatchID:   bid,
 			BatchSize: uint64(len(workItems)),
-			Phase:     phase,
 			CreateAt:  batchCreateAt,
 			Items:     workItems,
 		})
@@ -184,6 +187,62 @@ func (s *scheduler) patchExecute(ctx context.Context, phase v1.WorkPhase) {
 			s.metrics.ObserveExecution(event.Timing.Execution.Seconds(), event.ExecutorId)
 		}
 	}()
+}
+
+func (s *scheduler) pickBatch() ([]*model.WorkItem, int) {
+	remainTokens := s.maxBatchTokens
+	remainSeqs := s.maxBatchSeqs
+	remainPrefill := s.maxPartialPrefills
+	remainLongPrefill := s.maxLongPartialPrefills
+
+	batch := make([]*model.WorkItem, 0, remainSeqs)
+	items, itemNums := s.decodeQueue.Dequeue(min(remainSeqs, remainTokens))
+	if itemNums != 0 {
+		remainTokens -= itemNums
+		remainSeqs -= itemNums
+		batch = append(batch, items...)
+	} else {
+		remainPrefill, remainLongPrefill = remainSeqs, remainSeqs
+	}
+
+	for remainSeqs > 0 && remainTokens > 0 && remainPrefill > 0 {
+		if small, ok := s.prefillQueueSmall.Peek(); ok {
+			cost := WorkBudgetCost(small)
+			if cost <= remainTokens {
+				small, ok = s.prefillQueueSmall.Pop()
+				if !ok {
+					continue
+				}
+				batch = append(batch, small)
+				remainTokens -= cost
+				remainSeqs--
+				remainPrefill--
+				continue
+			}
+		}
+		if remainLongPrefill <= 0 {
+			break
+		}
+		if large, ok := s.prefillQueueLarge.Peek(); ok {
+			large, ok = s.prefillQueueLarge.Pop()
+			if !ok {
+				continue
+			}
+			cost := WorkBudgetCost(large)
+			scheduledTokens := min(cost, remainTokens)
+			chunk, _ := splitPrefillChunk(large, scheduledTokens)
+
+			batch = append(batch, chunk)
+			remainTokens -= scheduledTokens
+			remainSeqs--
+			remainPrefill--
+			remainLongPrefill--
+			continue
+		}
+		break
+	}
+
+	return batch, len(batch)
 }
 
 func (s *scheduler) signal(c chan struct{}) {

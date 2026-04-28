@@ -19,6 +19,7 @@ const WorkPhasePrefillStr = "WR_PREFILL"
 const WorkPhaseDecodeStr = "WR_DECODE"
 
 // String constants for enum mini_llm_serve.v1.EventType
+const EventTypePrefillChunkStr = "ET_PREFILL_CHUNK"
 const EventTypePrefillFinishedStr = "ET_PREFILL_FINISHED"
 const EventTypeDecodeChunkStr = "ET_DECODE_CHUNK"
 const EventTypeRequestFinishedStr = "ET_REQUEST_FINISHED"

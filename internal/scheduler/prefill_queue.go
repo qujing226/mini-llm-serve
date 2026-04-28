@@ -9,29 +9,30 @@ import (
 	"github.com/qujing226/mini-llm-serve/internal/model"
 )
 
-type Queue interface {
+type PrefillQueue interface {
 	Enqueue(t *model.WorkItem) error
-	Dequeue(n uint64) ([]*model.WorkItem, error)
+	Pop() (*model.WorkItem, bool)
+	Peek() (*model.WorkItem, bool)
 	Length() uint64
 	AvailableSpace() uint64
 }
 
 type prefillQueue struct {
 	mu    sync.Mutex
-	tasks []*model.WorkItem
+	works []*model.WorkItem
 	size  uint64
 	round time.Duration
 }
 
-func NewPrefillQueue(cfg *conf.Conf) Queue {
-	length := cfg.Server.QueueLength
+func NewPrefillQueue(cfg *conf.Conf) PrefillQueue {
+	length := cfg.Server.ScheduleConf.QueueConf.QueueLength
 	if length == 0 {
 		length = 100
 	}
 	q := &prefillQueue{
 		size:  length,
-		tasks: make([]*model.WorkItem, 0, length),
-		round: cfg.Server.QueueRoundInterval(),
+		works: make([]*model.WorkItem, 0, length),
+		round: cfg.Server.ScheduleConf.QueueConf.QueueRoundInterval(),
 	}
 	return q
 }
@@ -40,37 +41,66 @@ func (q *prefillQueue) Enqueue(t *model.WorkItem) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	if uint64(len(q.tasks)) >= q.size {
+	if uint64(len(q.works)) >= q.size {
 		return errors.New(errors.CodeQueueFull, "prefillQueue is full")
 	}
-	q.tasks = append(q.tasks, t)
+	q.works = append(q.works, t)
 	return nil
 }
 
-func (q *prefillQueue) Dequeue(n uint64) ([]*model.WorkItem, error) {
+func (q *prefillQueue) Pop() (*model.WorkItem, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if len(q.works) == 0 {
+		return nil, false
+	}
+	work := q.works[0]
+	q.works = q.works[1:]
+	return work, true
+}
 
-	if n == 0 || len(q.tasks) == 0 {
+func (q *prefillQueue) Peek() (*model.WorkItem, bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if len(q.works) == 0 {
+		return nil, false
+	}
+	return q.works[0], true
+}
+
+func (q *prefillQueue) Dequeue(tokens uint64) ([]*model.WorkItem, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if tokens == 0 || len(q.works) == 0 {
 		return nil, nil
 	}
-	if n > uint64(len(q.tasks)) {
-		n = uint64(len(q.tasks))
-	}
+	workList := make([]*model.WorkItem, 0, 10)
+	used := uint64(0)
 
-	taskList := append([]*model.WorkItem(nil), q.tasks[:n]...)
-	q.tasks = q.tasks[n:]
-	return taskList, nil
+	for len(q.works) > 0 {
+		cost := WorkBudgetCost(q.works[0])
+		if used+cost > tokens {
+			break
+		}
+		workList = append(workList, q.works[0])
+		q.works = q.works[1:]
+		used += cost
+	}
+	if len(workList) == 0 {
+		workList = append(workList, q.works[0])
+		q.works = q.works[1:]
+	}
+	return workList, nil
 }
 
 func (q *prefillQueue) Length() uint64 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	return uint64(len(q.tasks))
+	return uint64(len(q.works))
 }
 
 func (q *prefillQueue) AvailableSpace() uint64 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	return q.size - uint64(len(q.tasks))
+	return q.size - uint64(len(q.works))
 }

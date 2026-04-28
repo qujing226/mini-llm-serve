@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 )
 
@@ -20,24 +19,39 @@ type lockFreeQueue struct {
 	round time.Duration
 }
 
-func NewLockFreeQueue(cfg *conf.Conf) Queue {
-	length := cfg.Server.QueueLength
-	if length < 1024 || length > 10240 {
-		length = 4096
-	} else {
-		n := 1
-		for n < int(length) {
-			n <<= 1
-		}
-		length = uint64(n)
-	}
-	q := &lockFreeQueue{
-		size:  length,
-		buf:   make([]*model.WorkItem, length),
-		round: cfg.Server.QueueRoundInterval(),
-	}
-	return q
+func (q *lockFreeQueue) Pop() (*model.WorkItem, error) {
+	//TODO implement me
+	panic("implement me")
 }
+
+func (q *lockFreeQueue) Peek() (*model.WorkItem, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+//func (q *lockFreeQueue) Dequeue(tokens uint64) ([]*model.WorkItem, error) {
+//	//TODO implement me
+//	panic("implement me")
+//}
+
+//func NewLockFreeQueue(cfg *conf.Conf) Queue {
+//	length := cfg.Server.QueueLength
+//	if length < 1024 || length > 10240 {
+//		length = 4096
+//	} else {
+//		n := 1
+//		for n < int(length) {
+//			n <<= 1
+//		}
+//		length = uint64(n)
+//	}
+//	q := &lockFreeQueue{
+//		size:  length,
+//		buf:   make([]*model.WorkItem, length),
+//		round: cfg.Server.QueueRoundInterval(),
+//	}
+//	return q
+//}
 
 func (q *lockFreeQueue) Enqueue(task *model.WorkItem) error {
 	if q.AvailableSpace() == 0 {

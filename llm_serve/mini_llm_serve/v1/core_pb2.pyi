@@ -22,6 +22,7 @@ class WorkPhase(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 
 class EventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
+    EVENT_TYPE_PREFILL_CHUNK: _ClassVar[EventType]
     EVENT_TYPE_PREFILL_FINISHED: _ClassVar[EventType]
     EVENT_TYPE_DECODE_CHUNK: _ClassVar[EventType]
     EVENT_TYPE_REQUEST_FINISHED: _ClassVar[EventType]
@@ -34,6 +35,7 @@ FINISH_REASON_TIMEOUT: FinishReason
 FINISH_REASON_ERROR: FinishReason
 WORK_PHASE_PREFILL: WorkPhase
 WORK_PHASE_DECODE: WorkPhase
+EVENT_TYPE_PREFILL_CHUNK: EventType
 EVENT_TYPE_PREFILL_FINISHED: EventType
 EVENT_TYPE_DECODE_CHUNK: EventType
 EVENT_TYPE_REQUEST_FINISHED: EventType

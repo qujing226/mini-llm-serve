@@ -67,10 +67,14 @@ func NewLLMServingServer(l *zap.SugaredLogger, serverConf *conf.Conf, e handler.
 		Addr:                         addr,
 		Handler:                      h2cHandler,
 		DisableGeneralOptionsHandler: false,
-		ReadTimeout:                  3 * time.Second,
-		ReadHeaderTimeout:            3 * time.Second,
-		WriteTimeout:                 5 * time.Second,
-		IdleTimeout:                  60 * time.Second,
+
+		ReadTimeout:       3 * time.Second,
+		ReadHeaderTimeout: 3 * time.Second,
+		// Inference requests can legitimately run longer than a fixed HTTP
+		// write deadline, especially unary calls that do not send headers until
+		// generation is complete. Request-level deadlines own cancellation.
+		WriteTimeout: 0,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	return &InferenceHTTPServer{

@@ -16,7 +16,7 @@ type InferenceClient struct {
 }
 
 func NewClient(endpoints []string) *InferenceClient {
-	return NewClientWithTimeout(endpoints, 5*time.Second)
+	return NewClientWithTimeout(endpoints, 15*time.Second)
 }
 
 func NewClientWithTimeout(endpoints []string, timeout time.Duration) *InferenceClient {

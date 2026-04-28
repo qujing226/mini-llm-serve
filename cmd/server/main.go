@@ -36,17 +36,18 @@ func main() {
 
 		// initialize scheduler
 		fx.Provide(
+			scheduler.NewDecodeQueue,
 			fx.Annotate(
 				scheduler.NewPrefillQueue,
-				fx.ResultTags(`name:"prefillQueue"`),
+				fx.ResultTags(`name:"prefillQueueSmall"`),
 			),
 			fx.Annotate(
-				scheduler.NewDecodeQueue,
-				fx.ResultTags(`name:"decodeQueue"`),
+				scheduler.NewPrefillQueue,
+				fx.ResultTags(`name:"decodeQueueLarge"`),
 			),
 			fx.Annotate(
 				scheduler.NewScheduler,
-				fx.ParamTags(``, ``, `name:"prefillQueue"`, `name:"decodeQueue"`, ``, ``, ``),
+				fx.ParamTags(``, ``, `name:"prefillQueueSmall"`, `name:"decodeQueueLarge"`, ``, ``, ``, ``),
 			),
 		),
 		fx.Provide(

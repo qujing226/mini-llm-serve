@@ -52,7 +52,7 @@ func (e *work) Batch(ctx context.Context, batch *model.Batch) ([]*model.Event, e
 	executor := e.executors[executorId]
 	e.idx.Add(1)
 	// metrics: add batch process number for each executor
-	e.metrics.IncBatches(executorId, batch.Phase)
+	e.metrics.IncBatches(executorId)
 
 	resp, err := executor.Execute(ctx, batch)
 	if err != nil {

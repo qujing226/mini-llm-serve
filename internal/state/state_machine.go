@@ -50,18 +50,18 @@ func (r *requestLifecycleStateManager) Create(req *model.Request) (*model.WorkIt
 
 	now := time.Now()
 	workItem := &model.WorkItem{
-		WorkId:              utils.MustGenerateUUIDv7(),
-		RequestId:           req.RequestId,
-		Phase:               v1.WorkPhasePrefill,
-		Model:               req.Model,
-		Prompt:              req.Prompt,
-		MaxTokens:           req.MaxTokens,
-		Deadline:            req.Deadline,
-		PromptTokens:        req.PromptTokens,
-		DecodeTokensPlanned: 0,
-		BudgetCost:          req.PromptTokens,
-		CacheHit:            false,
-		ReadyAt:             now,
+		WorkId:        utils.MustGenerateUUIDv7(),
+		RequestId:     req.RequestId,
+		Phase:         v1.WorkPhasePrefill,
+		Model:         req.Model,
+		Prompt:        req.Prompt,
+		MaxTokens:     req.MaxTokens,
+		Deadline:      req.Deadline,
+		PromptTokens:  req.PromptTokens,
+		PrefillOffset: 0,
+		PrefillTokens: req.PromptTokens,
+		CacheHit:      false,
+		ReadyAt:       now,
 	}
 	return workItem, nil
 }
@@ -116,27 +116,44 @@ func (r *requestLifecycleStateManager) OnEvent(e *model.Event) ([]*model.WorkIte
 	req, exists := r.requests[e.RequestId]
 	if !exists {
 		r.mu.Unlock()
-		return nil, errors.New(errors.CodeInternal, "request does not exist")
+		// The request may have been canceled or finished while a work item was
+		// still queued or in-flight. Treat late executor results as stale.
+		return nil, nil
 	}
 
 	var onWorkItems []*model.WorkItem
 	now := time.Now()
 	switch e.Type {
+	case v1.EventTypePrefillChunk:
+		req.Phase = model.RequestPhasePrefillRunning
+		prefillItem := &model.WorkItem{
+			WorkId:        utils.MustGenerateUUIDv7(),
+			RequestId:     e.RequestId,
+			Phase:         v1.WorkPhasePrefill,
+			Model:         req.Model,
+			Prompt:        req.Prompt,
+			MaxTokens:     req.MaxTokens,
+			Deadline:      req.Deadline,
+			PromptTokens:  req.PromptTokens,
+			PrefillOffset: e.Usage.InputTokens,
+			PrefillTokens: req.PromptTokens - e.Usage.InputTokens,
+			CacheHit:      false,
+			ReadyAt:       now,
+		}
+		onWorkItems = append(onWorkItems, prefillItem)
 	case v1.EventTypePrefillFinished:
 		req.Phase = model.RequestPhaseDecodeReady
 		decodeItem := &model.WorkItem{
-			WorkId:              utils.MustGenerateUUIDv7(),
-			RequestId:           e.RequestId,
-			Phase:               v1.WorkPhaseDecode,
-			Model:               req.Model,
-			Prompt:              req.Prompt,
-			MaxTokens:           req.MaxTokens,
-			Deadline:            req.Deadline,
-			PromptTokens:        req.PromptTokens,
-			DecodeTokensPlanned: 0,
-			BudgetCost:          e.Usage.InputTokens,
-			CacheHit:            false,
-			ReadyAt:             now,
+			WorkId:       utils.MustGenerateUUIDv7(),
+			RequestId:    e.RequestId,
+			Phase:        v1.WorkPhaseDecode,
+			Model:        req.Model,
+			Prompt:       req.Prompt,
+			MaxTokens:    req.MaxTokens,
+			Deadline:     req.Deadline,
+			PromptTokens: req.PromptTokens,
+			CacheHit:     false,
+			ReadyAt:      now,
 		}
 		onWorkItems = append(onWorkItems, decodeItem)
 	case v1.EventTypeDecodeChunk:
@@ -150,20 +167,18 @@ func (r *requestLifecycleStateManager) OnEvent(e *model.Event) ([]*model.WorkIte
 			req.FinishReason = e.FinishReason
 			// todo：决定清理请求/通知订阅者
 		} else {
-			req.Phase = model.RequestPhaseDecodeReady
+			req.Phase = model.RequestPhaseDecodeRunning
 			decodeItem := &model.WorkItem{
-				WorkId:              utils.MustGenerateUUIDv7(),
-				RequestId:           e.RequestId,
-				Phase:               v1.WorkPhaseDecode,
-				Model:               req.Model,
-				Prompt:              req.Prompt,
-				MaxTokens:           req.MaxTokens,
-				Deadline:            req.Deadline,
-				PromptTokens:        req.PromptTokens,
-				DecodeTokensPlanned: 0,
-				BudgetCost:          e.Usage.InputTokens,
-				CacheHit:            false,
-				ReadyAt:             now,
+				WorkId:       utils.MustGenerateUUIDv7(),
+				RequestId:    e.RequestId,
+				Phase:        v1.WorkPhaseDecode,
+				Model:        req.Model,
+				Prompt:       req.Prompt,
+				MaxTokens:    req.MaxTokens,
+				Deadline:     req.Deadline,
+				PromptTokens: req.PromptTokens,
+				CacheHit:     false,
+				ReadyAt:      now,
 			}
 			onWorkItems = append(onWorkItems, decodeItem)
 		}

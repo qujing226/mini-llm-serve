@@ -45,11 +45,14 @@ class ExecuteServiceImpl(ExecuteService):
         return response
     
     async def _execute_prefill(self, item) -> ExecuteResult:
-        latency_ms = random.randint(80,180)
+        scheduled_tokens = item.prefill_tokens or max(1, len(item.prompt) // 4)
+        latency_ms = max(10, min(180, scheduled_tokens // 4 + random.randint(10, 30)))
         await asyncio.sleep(latency_ms / 1000)
 
         prompt_tokens = max(1, len(item.prompt) // 4)
-        request_state[item.request_id] = 0
+        computed_tokens = min(prompt_tokens, item.prefill_offset + scheduled_tokens)
+        if computed_tokens >= prompt_tokens:
+            request_state[item.request_id] = 0
 
         return ExecuteResult(
             work_id=item.work_id,
@@ -57,7 +60,7 @@ class ExecuteServiceImpl(ExecuteService):
             done=False,
             output_text = "",
             finish_reason=core_pb2.FINISH_REASON_UNSPECIFIED,
-            input_tokens = prompt_tokens,
+            input_tokens = computed_tokens,
             output_tokens=0,
             execution_ms=latency_ms,
             error_message="",
@@ -69,7 +72,7 @@ class ExecuteServiceImpl(ExecuteService):
 
         generated = request_state.get(item.request_id, 0)
 
-        chunk_tokens = item.decode_tokens_planned or 4
+        chunk_tokens = 1
         remaining = max(0, item.max_tokens - generated)
         actual_tokens = min(chunk_tokens, remaining)
 

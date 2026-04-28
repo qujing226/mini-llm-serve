@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from mini_llm_serve.v1 import core_pb2 as mini__llm__serve_dot_v1_dot_core__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1fmini_llm_serve/v1/execute.proto\x12\x11mini_llm_serve.v1\x1a\x1cmini_llm_serve/v1/core.proto\"f\n\x13\x45xecuteBatchRequest\x12\x19\n\x08\x62\x61tch_id\x18\x01 \x01(\tR\x07\x62\x61tchId\x12\x34\n\x05items\x18\x02 \x03(\x0b\x32\x1e.mini_llm_serve.v1.ExecuteItemR\x05items\"\xe4\x01\n\x0b\x45xecuteItem\x12\x17\n\x07work_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n\nrequest_id\x18\x02 \x01(\tR\trequestId\x12\x32\n\x05phase\x18\x03 \x01(\x0e\x32\x1c.mini_llm_serve.v1.WorkPhaseR\x05phase\x12\x16\n\x06prompt\x18\x04 \x01(\tR\x06prompt\x12\x1d\n\nmax_tokens\x18\x05 \x01(\rR\tmaxTokens\x12\x32\n\x15\x64\x65\x63ode_tokens_planned\x18\x06 \x01(\rR\x13\x64\x65\x63odeTokensPlanned\"\x8e\x01\n\x14\x45xecuteBatchResponse\x12\x19\n\x08\x62\x61tch_id\x18\x01 \x01(\tR\x07\x62\x61tchId\x12\x1f\n\x0b\x65xecutor_id\x18\x02 \x01(\tR\nexecutorId\x12:\n\x07results\x18\x03 \x03(\x0b\x32 .mini_llm_serve.v1.ExecuteResultR\x07results\"\xd2\x02\n\rExecuteResult\x12\x17\n\x07work_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n\nrequest_id\x18\x02 \x01(\tR\trequestId\x12\x1f\n\x0boutput_text\x18\x03 \x01(\tR\noutputText\x12\x12\n\x04\x64one\x18\x04 \x01(\x08R\x04\x64one\x12\x44\n\rfinish_reason\x18\x05 \x01(\x0e\x32\x1f.mini_llm_serve.v1.FinishReasonR\x0c\x66inishReason\x12!\n\x0cinput_tokens\x18\x06 \x01(\rR\x0binputTokens\x12#\n\routput_tokens\x18\x07 \x01(\rR\x0coutputTokens\x12!\n\x0c\x65xecution_ms\x18\x08 \x01(\rR\x0b\x65xecutionMs\x12#\n\rerror_message\x18\t \x01(\tR\x0c\x65rrorMessage2q\n\x0e\x45xecuteService\x12_\n\x0c\x45xecuteBatch\x12&.mini_llm_serve.v1.ExecuteBatchRequest\x1a\'.mini_llm_serve.v1.ExecuteBatchResponseB\xd1\x01\n\x15\x63om.mini_llm_serve.v1B\x0c\x45xecuteProtoP\x01ZMgithub.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1;mini_llm_servev1\xa2\x02\x03MXX\xaa\x02\x0fMiniLlmServe.V1\xca\x02\x0fMiniLlmServe\\V1\xe2\x02\x1bMiniLlmServe\\V1\\GPBMetadata\xea\x02\x10MiniLlmServe::V1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1fmini_llm_serve/v1/execute.proto\x12\x11mini_llm_serve.v1\x1a\x1cmini_llm_serve/v1/core.proto\"f\n\x13\x45xecuteBatchRequest\x12\x19\n\x08\x62\x61tch_id\x18\x01 \x01(\tR\x07\x62\x61tchId\x12\x34\n\x05items\x18\x02 \x03(\x0b\x32\x1e.mini_llm_serve.v1.ExecuteItemR\x05items\"\xfe\x01\n\x0b\x45xecuteItem\x12\x17\n\x07work_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n\nrequest_id\x18\x02 \x01(\tR\trequestId\x12\x32\n\x05phase\x18\x03 \x01(\x0e\x32\x1c.mini_llm_serve.v1.WorkPhaseR\x05phase\x12\x16\n\x06prompt\x18\x04 \x01(\tR\x06prompt\x12\x1d\n\nmax_tokens\x18\x05 \x01(\rR\tmaxTokens\x12%\n\x0eprefill_offset\x18\x06 \x01(\rR\rprefillOffset\x12%\n\x0eprefill_tokens\x18\x07 \x01(\rR\rprefillTokens\"\x8e\x01\n\x14\x45xecuteBatchResponse\x12\x19\n\x08\x62\x61tch_id\x18\x01 \x01(\tR\x07\x62\x61tchId\x12\x1f\n\x0b\x65xecutor_id\x18\x02 \x01(\tR\nexecutorId\x12:\n\x07results\x18\x03 \x03(\x0b\x32 .mini_llm_serve.v1.ExecuteResultR\x07results\"\xd2\x02\n\rExecuteResult\x12\x17\n\x07work_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n\nrequest_id\x18\x02 \x01(\tR\trequestId\x12\x1f\n\x0boutput_text\x18\x03 \x01(\tR\noutputText\x12\x12\n\x04\x64one\x18\x04 \x01(\x08R\x04\x64one\x12\x44\n\rfinish_reason\x18\x05 \x01(\x0e\x32\x1f.mini_llm_serve.v1.FinishReasonR\x0c\x66inishReason\x12!\n\x0cinput_tokens\x18\x06 \x01(\rR\x0binputTokens\x12#\n\routput_tokens\x18\x07 \x01(\rR\x0coutputTokens\x12!\n\x0c\x65xecution_ms\x18\x08 \x01(\rR\x0b\x65xecutionMs\x12#\n\rerror_message\x18\t \x01(\tR\x0c\x65rrorMessage2q\n\x0e\x45xecuteService\x12_\n\x0c\x45xecuteBatch\x12&.mini_llm_serve.v1.ExecuteBatchRequest\x1a\'.mini_llm_serve.v1.ExecuteBatchResponseB\xd1\x01\n\x15\x63om.mini_llm_serve.v1B\x0c\x45xecuteProtoP\x01ZMgithub.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1;mini_llm_servev1\xa2\x02\x03MXX\xaa\x02\x0fMiniLlmServe.V1\xca\x02\x0fMiniLlmServe\\V1\xe2\x02\x1bMiniLlmServe\\V1\\GPBMetadata\xea\x02\x10MiniLlmServe::V1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,11 +36,11 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_EXECUTEBATCHREQUEST']._serialized_start=84
   _globals['_EXECUTEBATCHREQUEST']._serialized_end=186
   _globals['_EXECUTEITEM']._serialized_start=189
-  _globals['_EXECUTEITEM']._serialized_end=417
-  _globals['_EXECUTEBATCHRESPONSE']._serialized_start=420
-  _globals['_EXECUTEBATCHRESPONSE']._serialized_end=562
-  _globals['_EXECUTERESULT']._serialized_start=565
-  _globals['_EXECUTERESULT']._serialized_end=903
-  _globals['_EXECUTESERVICE']._serialized_start=905
-  _globals['_EXECUTESERVICE']._serialized_end=1018
+  _globals['_EXECUTEITEM']._serialized_end=443
+  _globals['_EXECUTEBATCHRESPONSE']._serialized_start=446
+  _globals['_EXECUTEBATCHRESPONSE']._serialized_end=588
+  _globals['_EXECUTERESULT']._serialized_start=591
+  _globals['_EXECUTERESULT']._serialized_end=929
+  _globals['_EXECUTESERVICE']._serialized_start=931
+  _globals['_EXECUTESERVICE']._serialized_end=1044
 # @@protoc_insertion_point(module_scope)

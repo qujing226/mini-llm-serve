@@ -58,7 +58,7 @@ func (e *inferenceHandler) GenerateStream(ctx context.Context, req *model.Reques
 				if !ok {
 					return
 				}
-				if event.Type == v1.EventTypePrefillFinished {
+				if event.Type == v1.EventTypePrefillChunk || event.Type == v1.EventTypePrefillFinished {
 					continue
 				}
 				output := &model.GenerateOutput{

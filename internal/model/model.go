@@ -10,17 +10,16 @@ type Request struct {
 	RequestId string
 	Model     string
 	Prompt    string
-	MaxTokens uint32
+	MaxTokens uint64
 	Timeout   time.Duration
 	Deadline  time.Time
 
 	CacheKey string
 
-	PromptTokens    uint32
-	GeneratedTokens uint32
-
-	Phase        RequestPhase
-	FinishReason v1.FinishReason
+	PromptTokens    uint64
+	GeneratedTokens uint64
+	Phase           RequestPhase
+	FinishReason    v1.FinishReason
 
 	OutputText   string
 	CreatedAt    time.Time
@@ -35,7 +34,7 @@ type Request struct {
 // GenerateOutput stage2
 type GenerateOutput struct {
 	RequestId    string
-	Index        uint32
+	Index        uint64
 	DeltaText    string
 	FinishReason v1.FinishReason
 	Done         bool
@@ -54,12 +53,12 @@ type WorkItem struct {
 
 	Model     string
 	Prompt    string
-	MaxTokens uint32
+	MaxTokens uint64
 	Deadline  time.Time
 
-	PromptTokens        uint32
-	DecodeTokensPlanned uint32
-	BudgetCost          uint32
+	PromptTokens  uint64
+	PrefillOffset uint64 // 已经 prefill 到第几个 token
+	PrefillTokens uint64 // 本轮计划 prefill 多少 token
 
 	CacheHit bool
 
@@ -75,7 +74,7 @@ type Event struct {
 
 	Type v1.EventType
 
-	ChunkIndex uint32
+	ChunkIndex uint64
 	DeltaText  string
 	Done       bool
 

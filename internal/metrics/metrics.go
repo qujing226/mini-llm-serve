@@ -6,7 +6,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 )
 
@@ -15,8 +14,8 @@ type Metrics interface {
 	ObserveRequestDuration(s float64)
 	ObserveQueueWait(s float64)
 	ObserveExecution(s float64, executorID string)
-	ObserveBatchSize(size int, phase v1.WorkPhase)
-	IncBatches(executorID string, phase v1.WorkPhase)
+	ObserveBatchSize(size int)
+	IncBatches(executorID string)
 	SetPrefillQueueLength(n int)
 	SetDecodeQueueLength(n int)
 	SetInflightRequests(n int)
@@ -155,12 +154,14 @@ func (m *metrics) ObserveExecution(s float64, executorID string) {
 
 }
 
-func (m *metrics) ObserveBatchSize(size int, phase v1.WorkPhase) {
-	m.batchSize.WithLabelValues(phase.String()).Observe(float64(size))
+func (m *metrics) ObserveBatchSize(size int) {
+	//m.batchSize.WithLabelValues(phase.String()).Observe(float64(size))
+	m.batchSize.WithLabelValues("mixed").Observe(float64(size))
 }
 
-func (m *metrics) IncBatches(executorID string, phase v1.WorkPhase) {
-	m.batchesTotal.WithLabelValues(executorID, phase.String()).Inc()
+func (m *metrics) IncBatches(executorID string) {
+	//m.batchesTotal.WithLabelValues(executorID, phase.String()).Inc()
+	m.batchesTotal.WithLabelValues(executorID, "mixed").Inc()
 }
 
 func (m *metrics) SetPrefillQueueLength(n int) {

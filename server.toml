@@ -2,11 +2,17 @@
 address = "127.0.0.1:8800"
 adminPort = 8801
 
+[server.scheduleConf]
+batchRoundDuration = 100 # ms
+maxBatchSeqs = 25
+maxBatchTokens = 1024
+longPrefillTokenThreshold = 512
+maxPartialPrefills = 2
+maxLongPartialPrefills = 1
+
+[server.scheduleConf.queueConf]
 queueRoundTime = 30
 queueLength = 100 # ms
-
-batchSize = 10
-batchRoundDuration = 100 # ms
 
 [[executors]]
 id = "mock-python"

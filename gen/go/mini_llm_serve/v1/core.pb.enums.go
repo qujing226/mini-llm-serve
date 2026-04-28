@@ -17,6 +17,7 @@ const (
 )
 
 const (
+	EventTypePrefillChunk    = EventType_EVENT_TYPE_PREFILL_CHUNK
 	EventTypePrefillFinished = EventType_EVENT_TYPE_PREFILL_FINISHED
 	EventTypeDecodeChunk     = EventType_EVENT_TYPE_DECODE_CHUNK
 	EventTypeRequestFinished = EventType_EVENT_TYPE_REQUEST_FINISHED
