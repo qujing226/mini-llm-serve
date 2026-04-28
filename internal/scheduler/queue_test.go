@@ -2,13 +2,17 @@ package scheduler
 
 import (
 	"testing"
+	"time"
 
+	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/model"
+	"github.com/qujing226/mini-llm-serve/internal/state"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
-func testQueueConf(length uint64) *conf.Conf {
+func testQueueConf(length uint64) (*conf.Conf, state.RequestLifecycleStateManager) {
 	return &conf.Conf{
 		Server: conf.ServerConf{
 			ScheduleConf: conf.ScheduleConf{
@@ -17,14 +21,32 @@ func testQueueConf(length uint64) *conf.Conf {
 				},
 			},
 		},
-	}
+	}, state.NewRequestLifecycleStateManager(zap.S())
+}
+
+func testQueueWork(t *testing.T, manager state.RequestLifecycleStateManager, id string, phase v1.WorkPhase) *model.WorkItem {
+	t.Helper()
+
+	work, err := manager.Create(&model.Request{
+		RequestId:    "req-" + id,
+		Model:        "mock",
+		Prompt:       "hello",
+		MaxTokens:    8,
+		PromptTokens: 2,
+		Deadline:     time.Now().Add(time.Minute),
+	})
+	require.NoError(t, err)
+	work.WorkId = id
+	work.Phase = phase
+	return work
 }
 
 func TestPrefillQueuePeekDoesNotRemove(t *testing.T) {
-	q := NewPrefillQueue(testQueueConf(3))
+	cfg, manager := testQueueConf(3)
+	q := NewPrefillQueue(cfg, manager)
 
-	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "p1"}))
-	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "p2"}))
+	require.NoError(t, q.Enqueue(testQueueWork(t, manager, "p1", v1.WorkPhasePrefill)))
+	require.NoError(t, q.Enqueue(testQueueWork(t, manager, "p2", v1.WorkPhasePrefill)))
 
 	item, ok := q.Peek()
 	require.True(t, ok)
@@ -38,10 +60,11 @@ func TestPrefillQueuePeekDoesNotRemove(t *testing.T) {
 }
 
 func TestPrefillQueuePopRemovesFIFO(t *testing.T) {
-	q := NewPrefillQueue(testQueueConf(3))
+	cfg, manager := testQueueConf(3)
+	q := NewPrefillQueue(cfg, manager)
 
-	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "p1"}))
-	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "p2"}))
+	require.NoError(t, q.Enqueue(testQueueWork(t, manager, "p1", v1.WorkPhasePrefill)))
+	require.NoError(t, q.Enqueue(testQueueWork(t, manager, "p2", v1.WorkPhasePrefill)))
 
 	item, ok := q.Pop()
 	require.True(t, ok)
@@ -57,7 +80,8 @@ func TestPrefillQueuePopRemovesFIFO(t *testing.T) {
 }
 
 func TestPrefillQueueEmptyPeekAndPop(t *testing.T) {
-	q := NewPrefillQueue(testQueueConf(2))
+	cfg, manager := testQueueConf(2)
+	q := NewPrefillQueue(cfg, manager)
 
 	item, ok := q.Peek()
 	require.False(t, ok)
@@ -69,20 +93,22 @@ func TestPrefillQueueEmptyPeekAndPop(t *testing.T) {
 }
 
 func TestPrefillQueueFull(t *testing.T) {
-	q := NewPrefillQueue(testQueueConf(1))
+	cfg, manager := testQueueConf(1)
+	q := NewPrefillQueue(cfg, manager)
 
-	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "p1"}))
-	require.Error(t, q.Enqueue(&model.WorkItem{WorkId: "p2"}))
+	require.NoError(t, q.Enqueue(testQueueWork(t, manager, "p1", v1.WorkPhasePrefill)))
+	require.Error(t, q.Enqueue(testQueueWork(t, manager, "p2", v1.WorkPhasePrefill)))
 	require.Equal(t, uint64(1), q.Length())
 	require.Equal(t, uint64(0), q.AvailableSpace())
 }
 
 func TestDecodeQueueDequeueRespectsMaxSeqs(t *testing.T) {
-	q := NewDecodeQueue(testQueueConf(3))
+	cfg, manager := testQueueConf(3)
+	q := NewDecodeQueue(cfg, manager)
 
-	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "d1"}))
-	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "d2"}))
-	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "d3"}))
+	require.NoError(t, q.Enqueue(testQueueWork(t, manager, "d1", v1.WorkPhaseDecode)))
+	require.NoError(t, q.Enqueue(testQueueWork(t, manager, "d2", v1.WorkPhaseDecode)))
+	require.NoError(t, q.Enqueue(testQueueWork(t, manager, "d3", v1.WorkPhaseDecode)))
 
 	items, n := q.Dequeue(2)
 	require.Equal(t, uint64(2), n)
@@ -99,7 +125,8 @@ func TestDecodeQueueDequeueRespectsMaxSeqs(t *testing.T) {
 }
 
 func TestDecodeQueueDequeueZeroOrEmpty(t *testing.T) {
-	q := NewDecodeQueue(testQueueConf(2))
+	cfg, manager := testQueueConf(2)
+	q := NewDecodeQueue(cfg, manager)
 
 	items, n := q.Dequeue(0)
 	require.Equal(t, uint64(0), n)
@@ -111,10 +138,11 @@ func TestDecodeQueueDequeueZeroOrEmpty(t *testing.T) {
 }
 
 func TestDecodeQueueFull(t *testing.T) {
-	q := NewDecodeQueue(testQueueConf(1))
+	cfg, manager := testQueueConf(1)
+	q := NewDecodeQueue(cfg, manager)
 
-	require.NoError(t, q.Enqueue(&model.WorkItem{WorkId: "d1"}))
-	require.Error(t, q.Enqueue(&model.WorkItem{WorkId: "d2"}))
+	require.NoError(t, q.Enqueue(testQueueWork(t, manager, "d1", v1.WorkPhaseDecode)))
+	require.Error(t, q.Enqueue(testQueueWork(t, manager, "d2", v1.WorkPhaseDecode)))
 	require.Equal(t, uint64(1), q.Length())
 	require.Equal(t, uint64(0), q.AvailableSpace())
 }

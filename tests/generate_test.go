@@ -32,7 +32,7 @@ func TestGenerate(t *testing.T) {
 				Model:     "deepseek-v4",
 				Prompt:    "hello world",
 				MaxTokens: 8,
-				TimeoutMs: 1500,
+				TimeoutMs: 100,
 				Labels:    nil,
 			})
 			if err != nil {
@@ -47,8 +47,10 @@ func TestGenerate(t *testing.T) {
 	}
 	wg.Wait()
 	close(errCh)
+	errNum := 1
 	for err := range errCh {
-		require.NoError(t, err)
+		t.Errorf("errNum: %d error: %v", errNum, err)
+		errNum++
 	}
 	resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
 		RequestId: "002",

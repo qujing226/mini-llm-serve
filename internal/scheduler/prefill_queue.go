@@ -7,6 +7,7 @@ import (
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/model"
+	"github.com/qujing226/mini-llm-serve/internal/state"
 )
 
 type PrefillQueue interface {
@@ -18,21 +19,23 @@ type PrefillQueue interface {
 }
 
 type prefillQueue struct {
-	mu    sync.Mutex
-	works []*model.WorkItem
-	size  uint64
-	round time.Duration
+	requestManager state.RequestLifecycleStateManager
+	mu             sync.Mutex
+	works          []*model.WorkItem
+	size           uint64
+	round          time.Duration
 }
 
-func NewPrefillQueue(cfg *conf.Conf) PrefillQueue {
+func NewPrefillQueue(cfg *conf.Conf, requestManager state.RequestLifecycleStateManager) PrefillQueue {
 	length := cfg.Server.ScheduleConf.QueueConf.QueueLength
 	if length == 0 {
 		length = 100
 	}
 	q := &prefillQueue{
-		size:  length,
-		works: make([]*model.WorkItem, 0, length),
-		round: cfg.Server.ScheduleConf.QueueConf.QueueRoundInterval(),
+		size:           length,
+		requestManager: requestManager,
+		works:          make([]*model.WorkItem, 0, length),
+		round:          cfg.Server.ScheduleConf.QueueConf.QueueRoundInterval(),
 	}
 	return q
 }
@@ -51,21 +54,28 @@ func (q *prefillQueue) Enqueue(t *model.WorkItem) error {
 func (q *prefillQueue) Pop() (*model.WorkItem, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	if len(q.works) == 0 {
-		return nil, false
+	for len(q.works) > 0 {
+		work := q.works[0]
+		q.works = q.works[1:]
+		if q.requestManager.CanSchedule(work) {
+			return work, true
+		}
 	}
-	work := q.works[0]
-	q.works = q.works[1:]
-	return work, true
+	return nil, false
 }
 
 func (q *prefillQueue) Peek() (*model.WorkItem, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	if len(q.works) == 0 {
-		return nil, false
+
+	for len(q.works) > 0 {
+		work := q.works[0]
+		if q.requestManager.CanSchedule(work) {
+			return work, true
+		}
+		q.works = q.works[1:]
 	}
-	return q.works[0], true
+	return nil, false
 }
 
 func (q *prefillQueue) Dequeue(tokens uint64) ([]*model.WorkItem, error) {

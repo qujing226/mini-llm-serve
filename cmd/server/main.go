@@ -43,11 +43,11 @@ func main() {
 			),
 			fx.Annotate(
 				scheduler.NewPrefillQueue,
-				fx.ResultTags(`name:"decodeQueueLarge"`),
+				fx.ResultTags(`name:"prefillQueueLarge"`),
 			),
 			fx.Annotate(
 				scheduler.NewScheduler,
-				fx.ParamTags(``, ``, `name:"prefillQueueSmall"`, `name:"decodeQueueLarge"`, ``, ``, ``, ``),
+				fx.ParamTags(``, ``, `name:"prefillQueueSmall"`, `name:"prefillQueueLarge"`, ``, ``, ``, ``),
 			),
 		),
 		fx.Provide(

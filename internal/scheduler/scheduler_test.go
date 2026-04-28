@@ -10,16 +10,37 @@ import (
 )
 
 func newTestScheduler() *scheduler {
+	cfg, manager := testQueueConf(16)
 	return &scheduler{
 		maxBatchSeqs:           8,
 		maxBatchTokens:         16,
 		maxPartialPrefills:     2,
 		maxLongPartialPrefills: 1,
 		longPrefillThreshold:   8,
-		prefillQueueSmall:      NewPrefillQueue(testQueueConf(16)),
-		prefillQueueLarge:      NewPrefillQueue(testQueueConf(16)),
-		decodeQueue:            NewDecodeQueue(testQueueConf(16)),
+		prefillQueueSmall:      NewPrefillQueue(cfg, manager),
+		prefillQueueLarge:      NewPrefillQueue(cfg, manager),
+		decodeQueue:            NewDecodeQueue(cfg, manager),
+		requestManager:         manager,
 	}
+}
+
+func testSchedulerWork(t *testing.T, s *scheduler, id string, phase v1.WorkPhase, promptTokens uint64, prefillTokens uint64) *model.WorkItem {
+	t.Helper()
+
+	work, err := s.requestManager.Create(&model.Request{
+		RequestId:    "req-" + id,
+		Model:        "mock",
+		Prompt:       "hello",
+		MaxTokens:    8,
+		PromptTokens: promptTokens,
+		Deadline:     time.Now().Add(time.Minute),
+	})
+	require.NoError(t, err)
+	work.WorkId = id
+	work.Phase = phase
+	work.PromptTokens = promptTokens
+	work.PrefillTokens = prefillTokens
+	return work
 }
 
 func requirePickBatchReturns(t *testing.T, s *scheduler) ([]*model.WorkItem, int) {
@@ -47,16 +68,8 @@ func requirePickBatchReturns(t *testing.T, s *scheduler) ([]*model.WorkItem, int
 func TestPickBatchSchedulesDecodeBeforePrefill(t *testing.T) {
 	s := newTestScheduler()
 
-	require.NoError(t, s.decodeQueue.Enqueue(&model.WorkItem{
-		WorkId: "d1",
-		Phase:  v1.WorkPhaseDecode,
-	}))
-	require.NoError(t, s.prefillQueueSmall.Enqueue(&model.WorkItem{
-		WorkId:        "p1",
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  4,
-		PrefillTokens: 4,
-	}))
+	require.NoError(t, s.decodeQueue.Enqueue(testSchedulerWork(t, s, "d1", v1.WorkPhaseDecode, 2, 0)))
+	require.NoError(t, s.prefillQueueSmall.Enqueue(testSchedulerWork(t, s, "p1", v1.WorkPhasePrefill, 4, 4)))
 
 	items, n := requirePickBatchReturns(t, s)
 
@@ -73,20 +86,9 @@ func TestPickBatchUsesRemainingTokenBudgetForSmallPrefill(t *testing.T) {
 	s.maxBatchTokens = 6
 	s.maxBatchSeqs = 4
 
-	require.NoError(t, s.decodeQueue.Enqueue(&model.WorkItem{
-		WorkId: "d1",
-		Phase:  v1.WorkPhaseDecode,
-	}))
-	require.NoError(t, s.decodeQueue.Enqueue(&model.WorkItem{
-		WorkId: "d2",
-		Phase:  v1.WorkPhaseDecode,
-	}))
-	require.NoError(t, s.prefillQueueSmall.Enqueue(&model.WorkItem{
-		WorkId:        "p1",
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  4,
-		PrefillTokens: 4,
-	}))
+	require.NoError(t, s.decodeQueue.Enqueue(testSchedulerWork(t, s, "d1", v1.WorkPhaseDecode, 2, 0)))
+	require.NoError(t, s.decodeQueue.Enqueue(testSchedulerWork(t, s, "d2", v1.WorkPhaseDecode, 2, 0)))
+	require.NoError(t, s.prefillQueueSmall.Enqueue(testSchedulerWork(t, s, "p1", v1.WorkPhasePrefill, 4, 4)))
 
 	items, n := requirePickBatchReturns(t, s)
 
@@ -104,16 +106,8 @@ func TestPickBatchDoesNotScheduleSmallPrefillThatExceedsRemainingBudget(t *testi
 	s.maxBatchTokens = 5
 	s.maxBatchSeqs = 4
 
-	require.NoError(t, s.decodeQueue.Enqueue(&model.WorkItem{
-		WorkId: "d1",
-		Phase:  v1.WorkPhaseDecode,
-	}))
-	require.NoError(t, s.prefillQueueSmall.Enqueue(&model.WorkItem{
-		WorkId:        "p1",
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  8,
-		PrefillTokens: 8,
-	}))
+	require.NoError(t, s.decodeQueue.Enqueue(testSchedulerWork(t, s, "d1", v1.WorkPhaseDecode, 2, 0)))
+	require.NoError(t, s.prefillQueueSmall.Enqueue(testSchedulerWork(t, s, "p1", v1.WorkPhasePrefill, 8, 8)))
 
 	items, n := requirePickBatchReturns(t, s)
 
@@ -130,13 +124,7 @@ func TestPickBatchChunksLargePrefillWithoutRequeueingRemainder(t *testing.T) {
 	s.maxPartialPrefills = 1
 	s.maxLongPartialPrefills = 1
 
-	require.NoError(t, s.prefillQueueLarge.Enqueue(&model.WorkItem{
-		WorkId:        "large",
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  24,
-		PrefillOffset: 0,
-		PrefillTokens: 24,
-	}))
+	require.NoError(t, s.prefillQueueLarge.Enqueue(testSchedulerWork(t, s, "large", v1.WorkPhasePrefill, 24, 24)))
 
 	items, n := requirePickBatchReturns(t, s)
 
@@ -154,18 +142,8 @@ func TestPickBatchFillsPrefillOnlyBatchBeyondPartialLimit(t *testing.T) {
 	s.maxBatchSeqs = 8
 	s.maxPartialPrefills = 1
 
-	require.NoError(t, s.prefillQueueSmall.Enqueue(&model.WorkItem{
-		WorkId:        "p1",
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  2,
-		PrefillTokens: 2,
-	}))
-	require.NoError(t, s.prefillQueueSmall.Enqueue(&model.WorkItem{
-		WorkId:        "p2",
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  2,
-		PrefillTokens: 2,
-	}))
+	require.NoError(t, s.prefillQueueSmall.Enqueue(testSchedulerWork(t, s, "p1", v1.WorkPhasePrefill, 2, 2)))
+	require.NoError(t, s.prefillQueueSmall.Enqueue(testSchedulerWork(t, s, "p2", v1.WorkPhasePrefill, 2, 2)))
 
 	items, n := requirePickBatchReturns(t, s)
 
@@ -182,22 +160,9 @@ func TestPickBatchRespectsMaxPartialPrefillsWhenDecodeIsPresent(t *testing.T) {
 	s.maxBatchSeqs = 8
 	s.maxPartialPrefills = 1
 
-	require.NoError(t, s.decodeQueue.Enqueue(&model.WorkItem{
-		WorkId: "d1",
-		Phase:  v1.WorkPhaseDecode,
-	}))
-	require.NoError(t, s.prefillQueueSmall.Enqueue(&model.WorkItem{
-		WorkId:        "p1",
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  2,
-		PrefillTokens: 2,
-	}))
-	require.NoError(t, s.prefillQueueSmall.Enqueue(&model.WorkItem{
-		WorkId:        "p2",
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  2,
-		PrefillTokens: 2,
-	}))
+	require.NoError(t, s.decodeQueue.Enqueue(testSchedulerWork(t, s, "d1", v1.WorkPhaseDecode, 2, 0)))
+	require.NoError(t, s.prefillQueueSmall.Enqueue(testSchedulerWork(t, s, "p1", v1.WorkPhasePrefill, 2, 2)))
+	require.NoError(t, s.prefillQueueSmall.Enqueue(testSchedulerWork(t, s, "p2", v1.WorkPhasePrefill, 2, 2)))
 
 	items, n := requirePickBatchReturns(t, s)
 
@@ -215,18 +180,8 @@ func TestPickBatchFillsPrefillOnlyBatchBeyondLongPartialLimit(t *testing.T) {
 	s.maxPartialPrefills = 2
 	s.maxLongPartialPrefills = 1
 
-	require.NoError(t, s.prefillQueueLarge.Enqueue(&model.WorkItem{
-		WorkId:        "l1",
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  4,
-		PrefillTokens: 4,
-	}))
-	require.NoError(t, s.prefillQueueLarge.Enqueue(&model.WorkItem{
-		WorkId:        "l2",
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  4,
-		PrefillTokens: 4,
-	}))
+	require.NoError(t, s.prefillQueueLarge.Enqueue(testSchedulerWork(t, s, "l1", v1.WorkPhasePrefill, 4, 4)))
+	require.NoError(t, s.prefillQueueLarge.Enqueue(testSchedulerWork(t, s, "l2", v1.WorkPhasePrefill, 4, 4)))
 
 	items, n := requirePickBatchReturns(t, s)
 
@@ -244,22 +199,9 @@ func TestPickBatchRespectsMaxLongPartialPrefillsWhenDecodeIsPresent(t *testing.T
 	s.maxPartialPrefills = 2
 	s.maxLongPartialPrefills = 1
 
-	require.NoError(t, s.decodeQueue.Enqueue(&model.WorkItem{
-		WorkId: "d1",
-		Phase:  v1.WorkPhaseDecode,
-	}))
-	require.NoError(t, s.prefillQueueLarge.Enqueue(&model.WorkItem{
-		WorkId:        "l1",
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  4,
-		PrefillTokens: 4,
-	}))
-	require.NoError(t, s.prefillQueueLarge.Enqueue(&model.WorkItem{
-		WorkId:        "l2",
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  4,
-		PrefillTokens: 4,
-	}))
+	require.NoError(t, s.decodeQueue.Enqueue(testSchedulerWork(t, s, "d1", v1.WorkPhaseDecode, 2, 0)))
+	require.NoError(t, s.prefillQueueLarge.Enqueue(testSchedulerWork(t, s, "l1", v1.WorkPhasePrefill, 4, 4)))
+	require.NoError(t, s.prefillQueueLarge.Enqueue(testSchedulerWork(t, s, "l2", v1.WorkPhasePrefill, 4, 4)))
 
 	items, n := requirePickBatchReturns(t, s)
 
@@ -268,4 +210,49 @@ func TestPickBatchRespectsMaxLongPartialPrefillsWhenDecodeIsPresent(t *testing.T
 	require.Equal(t, "d1", items[0].WorkId)
 	require.Equal(t, "l1", items[1].WorkId)
 	require.Equal(t, uint64(1), s.prefillQueueLarge.Length())
+}
+
+func TestPickBatchDropsCanceledWork(t *testing.T) {
+	s := newTestScheduler()
+	req := &model.Request{
+		RequestId:    "req-canceled",
+		Model:        "mock",
+		Prompt:       "hello",
+		MaxTokens:    8,
+		PromptTokens: 2,
+	}
+
+	work, err := s.requestManager.Create(req)
+	require.NoError(t, err)
+	require.NoError(t, s.prefillQueueSmall.Enqueue(work))
+
+	s.requestManager.Cancel(req.RequestId)
+
+	items, n := requirePickBatchReturns(t, s)
+
+	require.Equal(t, 0, n)
+	require.Empty(t, items)
+	require.Equal(t, uint64(0), s.prefillQueueSmall.Length())
+}
+
+func TestPickBatchDropsTimedOutWork(t *testing.T) {
+	s := newTestScheduler()
+	req := &model.Request{
+		RequestId:    "req-timeout",
+		Model:        "mock",
+		Prompt:       "hello",
+		MaxTokens:    8,
+		PromptTokens: 2,
+		Deadline:     time.Now().Add(-time.Second),
+	}
+
+	work, err := s.requestManager.Create(req)
+	require.NoError(t, err)
+	require.NoError(t, s.prefillQueueSmall.Enqueue(work))
+
+	items, n := requirePickBatchReturns(t, s)
+
+	require.Equal(t, 0, n)
+	require.Empty(t, items)
+	require.Equal(t, uint64(0), s.prefillQueueSmall.Length())
 }

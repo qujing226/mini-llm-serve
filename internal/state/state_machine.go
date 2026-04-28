@@ -13,11 +13,14 @@ import (
 
 type RequestLifecycleStateManager interface {
 	Create(req *model.Request) (*model.WorkItem, error)
-	Get(requestId string) (*model.Request, error)
-	Cancel(requestId string)
-	Fail(requestId string, err error)
-	OnEvent(e *model.Event) ([]*model.WorkItem, error)
+	Get(requestId string) (*model.Request, bool)
 	Subscribe(requestId string) (<-chan *model.Event, error)
+
+	CanSchedule(work *model.WorkItem) bool
+	OnEvent(e *model.Event) ([]*model.WorkItem, error)
+	Fail(requestId string, err error)
+
+	Cancel(requestId string)
 	Finish(requestId string)
 }
 
@@ -66,48 +69,59 @@ func (r *requestLifecycleStateManager) Create(req *model.Request) (*model.WorkIt
 	return workItem, nil
 }
 
-func (r *requestLifecycleStateManager) Get(requestId string) (*model.Request, error) {
+func (r *requestLifecycleStateManager) Get(requestId string) (*model.Request, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if req, exists := r.requests[requestId]; exists {
-		return req, nil
+		return req, true
 	}
-	return nil, errors.New(errors.CodeInvalidArgument, "request does not exist")
+	return nil, false
+}
+func (r *requestLifecycleStateManager) Subscribe(requestId string) (<-chan *model.Event, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	ch, exists := r.subscribeCh[requestId]
+	if !exists {
+		return nil, errors.New(errors.CodeInternal, "subscribe channel doesn't exist")
+	}
+	return ch, nil
 }
 
-func (r *requestLifecycleStateManager) Cancel(requestId string) {
+func (r *requestLifecycleStateManager) CanSchedule(work *model.WorkItem) bool {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-	if req, exists := r.requests[requestId]; exists {
-		req.Phase = model.RequestPhaseCanceled
-		delete(r.requests, requestId)
+	req, exists := r.requests[work.RequestId]
+	if !exists {
+		r.mu.Unlock()
+		return false
 	}
-	if subCh, exists := r.subscribeCh[requestId]; exists {
-		delete(r.subscribeCh, requestId)
-		close(subCh)
-	}
-}
-
-func (r *requestLifecycleStateManager) Fail(requestId string, err error) {
-	r.mu.Lock()
-	if req, exists := r.requests[requestId]; exists {
-		req.Phase = model.RequestPhaseFailed
-		delete(r.requests, requestId)
-	}
-	subCh, exists := r.subscribeCh[requestId]
-	delete(r.subscribeCh, requestId)
-	r.mu.Unlock()
-	if exists {
-		subCh <- &model.Event{
-			WorkId:       utils.MustGenerateUUIDv7(),
-			RequestId:    requestId,
-			Type:         v1.EventTypeRequestFailed,
-			Done:         true,
-			FinishReason: v1.FinishReasonError,
-			At:           time.Now(),
-			Err:          err,
+	if !req.Deadline.IsZero() && time.Now().After(req.Deadline) {
+		req.Phase = model.RequestPhaseTimeout
+		delete(r.requests, work.RequestId)
+		subCh, exists := r.subscribeCh[work.RequestId]
+		delete(r.subscribeCh, work.RequestId)
+		r.mu.Unlock()
+		if exists {
+			subCh <- &model.Event{
+				WorkId:       utils.MustGenerateUUIDv7(),
+				RequestId:    work.RequestId,
+				Type:         v1.EventTypeRequestFailed,
+				Done:         true,
+				FinishReason: v1.FinishReasonError,
+				At:           time.Now(),
+				Err:          errors.New(errors.CodeRequestTimeout, "request timeout"),
+			}
+			close(subCh)
 		}
-		close(subCh)
+		return false
+	}
+
+	switch req.Phase {
+	case model.RequestPhaseFinished, model.RequestPhaseCanceled, model.RequestPhaseTimeout, model.RequestPhaseFailed:
+		r.mu.Unlock()
+		return false
+	default:
+		r.mu.Unlock()
+		return true
 	}
 }
 
@@ -207,14 +221,40 @@ func (r *requestLifecycleStateManager) OnEvent(e *model.Event) ([]*model.WorkIte
 	return onWorkItems, nil
 }
 
-func (r *requestLifecycleStateManager) Subscribe(requestId string) (<-chan *model.Event, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	ch, exists := r.subscribeCh[requestId]
-	if !exists {
-		return nil, errors.New(errors.CodeInternal, "subscribe channel doesn't exist")
+func (r *requestLifecycleStateManager) Cancel(requestId string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if req, exists := r.requests[requestId]; exists {
+		req.Phase = model.RequestPhaseCanceled
+		delete(r.requests, requestId)
 	}
-	return ch, nil
+	if subCh, exists := r.subscribeCh[requestId]; exists {
+		delete(r.subscribeCh, requestId)
+		close(subCh)
+	}
+}
+
+func (r *requestLifecycleStateManager) Fail(requestId string, err error) {
+	r.mu.Lock()
+	if req, exists := r.requests[requestId]; exists {
+		req.Phase = model.RequestPhaseFailed
+		delete(r.requests, requestId)
+	}
+	subCh, exists := r.subscribeCh[requestId]
+	delete(r.subscribeCh, requestId)
+	r.mu.Unlock()
+	if exists {
+		subCh <- &model.Event{
+			WorkId:       utils.MustGenerateUUIDv7(),
+			RequestId:    requestId,
+			Type:         v1.EventTypeRequestFailed,
+			Done:         true,
+			FinishReason: v1.FinishReasonError,
+			At:           time.Now(),
+			Err:          err,
+		}
+		close(subCh)
+	}
 }
 
 func (r *requestLifecycleStateManager) Finish(requestId string) {

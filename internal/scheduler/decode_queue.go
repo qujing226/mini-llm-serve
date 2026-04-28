@@ -7,6 +7,7 @@ import (
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/model"
+	"github.com/qujing226/mini-llm-serve/internal/state"
 )
 
 type DecodeQueue interface {
@@ -16,10 +17,11 @@ type DecodeQueue interface {
 	AvailableSpace() uint64
 }
 type decodeQueue struct {
-	mu    sync.Mutex
-	works []*workItemEntry
-	size  uint64
-	round time.Duration
+	requestManager state.RequestLifecycleStateManager
+	mu             sync.Mutex
+	works          []*workItemEntry
+	size           uint64
+	round          time.Duration
 }
 
 type workItemEntry struct {
@@ -28,15 +30,16 @@ type workItemEntry struct {
 	quant   uint64
 }
 
-func NewDecodeQueue(cfg *conf.Conf) DecodeQueue {
+func NewDecodeQueue(cfg *conf.Conf, requestManager state.RequestLifecycleStateManager) DecodeQueue {
 	length := cfg.Server.ScheduleConf.QueueConf.QueueLength
 	if length == 0 {
 		length = 100
 	}
 	q := &decodeQueue{
-		size:  length,
-		works: make([]*workItemEntry, 0, length),
-		round: cfg.Server.ScheduleConf.QueueConf.QueueRoundInterval(),
+		size:           length,
+		requestManager: requestManager,
+		works:          make([]*workItemEntry, 0, length),
+		round:          cfg.Server.ScheduleConf.QueueConf.QueueRoundInterval(),
 	}
 	return q
 }
@@ -67,8 +70,11 @@ func (q *decodeQueue) Dequeue(maxSeqs uint64) ([]*model.WorkItem, uint64) {
 		if len(q.works) == 0 {
 			break
 		}
-		workList = append(workList, q.works[0].work)
+		w := q.works[0]
 		q.works = q.works[1:]
+		if q.requestManager.CanSchedule(w.work) {
+			workList = append(workList, w.work)
+		}
 	}
 	return workList, uint64(len(workList))
 }
