@@ -1,0 +1,13 @@
+.git
+.idea
+.vscode
+.codex
+tmp
+bin
+dist
+build
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+llm_serve/.venv
