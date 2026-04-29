@@ -30,15 +30,15 @@ type Scenario struct {
 }
 
 type BenchMetrics struct {
-	BatchesTotal          float64
-	QueueRejectedTotal    float64
-	AvgBatchSize          float64
-	AvgQueueWaitSeconds   float64
-	AvgExecutionSeconds   float64
-	RequestCountObserved  float64
-	BatchCountObserved    float64
-	InflightRequestsFinal float64
-	InflightBatchesFinal  float64
+	BatchesTotal         float64
+	QueueRejectedTotal   float64
+	AvgBatchSize         float64
+	AvgQueueWaitSeconds  float64
+	AvgExecutionSeconds  float64
+	RequestCountObserved float64
+	BatchCountObserved   float64
+	ActiveRequestsFinal  float64
+	InflightBatchesFinal float64
 }
 
 type Result struct {
@@ -238,8 +238,8 @@ func parseBenchMetrics(body string) BenchMetrics {
 			queueWaitCount = value
 		case strings.HasPrefix(name, "llm_requests_total"):
 			requestCount += value
-		case name == "llm_inflight_requests":
-			metrics.InflightRequestsFinal = value
+		case name == "llm_active_requests":
+			metrics.ActiveRequestsFinal = value
 		case name == "llm_inflight_batches":
 			metrics.InflightBatchesFinal = value
 		}
@@ -318,13 +318,13 @@ func printResult(w io.Writer, result Result) {
 		result.P90Latency.Round(time.Millisecond),
 		result.P99Latency.Round(time.Millisecond),
 	)
-	fmt.Fprintf(w, "metrics batches_total=%.0f avg_batch_size=%.2f avg_queue_wait_s=%.4f avg_execution_s=%.4f queue_rejected=%.0f inflight_requests=%.0f inflight_batches=%.0f observed_requests=%.0f\n",
+	fmt.Fprintf(w, "metrics batches_total=%.0f avg_batch_size=%.2f avg_queue_wait_s=%.4f avg_execution_s=%.4f queue_rejected=%.0f active_requests=%.0f inflight_batches=%.0f observed_requests=%.0f\n",
 		result.Metrics.BatchesTotal,
 		result.Metrics.AvgBatchSize,
 		result.Metrics.AvgQueueWaitSeconds,
 		result.Metrics.AvgExecutionSeconds,
 		result.Metrics.QueueRejectedTotal,
-		result.Metrics.InflightRequestsFinal,
+		result.Metrics.ActiveRequestsFinal,
 		result.Metrics.InflightBatchesFinal,
 		result.Metrics.RequestCountObserved,
 	)

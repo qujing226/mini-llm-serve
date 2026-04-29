@@ -24,8 +24,7 @@ type ServerConf struct {
 }
 
 type ScheduleConf struct {
-	QueueConf          QueueConf
-	BatchRoundDuration uint64 `koanf:"batchRoundDuration"`
+	QueueConf QueueConf
 
 	MaxBatchSeq               uint64 `koanf:"maxBatchSeqs"`
 	MaxBatchTokens            uint64 `koanf:"maxBatchTokens"`
@@ -41,10 +40,6 @@ type QueueConf struct {
 
 func (s QueueConf) QueueRoundInterval() time.Duration {
 	return time.Duration(s.QueueRoundTime) * time.Millisecond
-}
-
-func (s ScheduleConf) BatchRoundInterval() time.Duration {
-	return time.Duration(s.BatchRoundDuration) * time.Millisecond
 }
 
 type ExecutorConf struct {

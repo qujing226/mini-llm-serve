@@ -23,26 +23,28 @@ class ExecuteServiceImpl(ExecuteService):
             executor_id = "mock-python",
         )
 
-        for item in request.items:
-            if item.phase == core_pb2.WORK_PHASE_PREFILL:
-                result = await self._execute_prefill(item)
-            elif item.phase == core_pb2.WORK_PHASE_DECODE:
-                result = await self._execute_decode(item)
-            else:
-                result = ExecuteResult(
-                    work_id=item.work_id,
-                    request_id=item.request_id,
-                    done=True,
-                    output_text="",
-                    finish_reason=core_pb2.FINISH_REASON_ERROR,
-                    input_tokens=0,
-                    output_tokens=0,
-                    execution_ms=0,
-                    error_message=f"unsupported work phase: {item.phase}."
-                )
-
-            response.results.append(result)
+        results = await asyncio.gather(
+            *(self._execute_item(item) for item in request.items)
+        )
+        response.results.extend(results)
         return response
+
+    async def _execute_item(self, item) -> ExecuteResult:
+        if item.phase == core_pb2.WORK_PHASE_PREFILL:
+            return await self._execute_prefill(item)
+        if item.phase == core_pb2.WORK_PHASE_DECODE:
+            return await self._execute_decode(item)
+        return ExecuteResult(
+            work_id=item.work_id,
+            request_id=item.request_id,
+            done=True,
+            output_text="",
+            finish_reason=core_pb2.FINISH_REASON_ERROR,
+            input_tokens=0,
+            output_tokens=0,
+            execution_ms=0,
+            error_message=f"unsupported work phase: {item.phase}."
+        )
     
     async def _execute_prefill(self, item) -> ExecuteResult:
         scheduled_tokens = item.prefill_tokens or max(1, len(item.prompt) // 4)

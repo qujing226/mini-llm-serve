@@ -2,12 +2,12 @@ package main
 
 import (
 	"github.com/qujing226/mini-llm-serve/internal/conf"
+	"github.com/qujing226/mini-llm-serve/internal/executor"
 	"github.com/qujing226/mini-llm-serve/internal/handler"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/scheduler"
 	"github.com/qujing226/mini-llm-serve/internal/state"
 	connect "github.com/qujing226/mini-llm-serve/internal/transport"
-	"github.com/qujing226/mini-llm-serve/internal/worker"
 	"github.com/spf13/pflag"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
@@ -52,8 +52,8 @@ func main() {
 		),
 		fx.Provide(
 			metrics.NewMetrics,
-			worker.NewExecutors,
-			worker.NewWorker,
+			executor.NewExecutors,
+			executor.NewExecutorManager,
 			state.NewRequestLifecycleStateManager,
 			handler.NewInferenceHandle,
 			connect.NewLLMServingServer,

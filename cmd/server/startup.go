@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 
+	"github.com/qujing226/mini-llm-serve/internal/executor"
 	"github.com/qujing226/mini-llm-serve/internal/scheduler"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
-func StartBatchLoop(lc fx.Lifecycle, s scheduler.Scheduler, log *zap.SugaredLogger) {
+func StartBatchLoop(lc fx.Lifecycle, log *zap.SugaredLogger, s scheduler.Scheduler, e executor.Manager) {
 	runCtx, cancel := context.WithCancel(context.Background())
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
@@ -16,6 +17,11 @@ func StartBatchLoop(lc fx.Lifecycle, s scheduler.Scheduler, log *zap.SugaredLogg
 				log.Info("scheduler batch loop started")
 				s.Batch(runCtx)
 				log.Info("scheduler batch loop stopped")
+			}()
+			go func() {
+				log.Info("executor manager consume loop started")
+				e.Consume(runCtx)
+				log.Info("executor manager consume loop stopped")
 			}()
 
 			return nil

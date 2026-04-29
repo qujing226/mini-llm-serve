@@ -17,7 +17,7 @@ import (
 
 func TestGenerate(t *testing.T) {
 	requireServer(t, "127.0.0.1:8800")
-	c := client.NewClient([]string{"http://127.0.0.1:8800"})
+	c := client.NewClientWithTimeout([]string{"http://127.0.0.1:8800"}, 20*time.Second)
 	var wg sync.WaitGroup
 
 	msgNumber := 100
@@ -32,7 +32,7 @@ func TestGenerate(t *testing.T) {
 				Model:     "deepseek-v4",
 				Prompt:    "hello world",
 				MaxTokens: 8,
-				TimeoutMs: 100,
+				TimeoutMs: 18000,
 				Labels:    nil,
 			})
 			if err != nil {
@@ -41,6 +41,10 @@ func TestGenerate(t *testing.T) {
 			}
 			if resp == nil {
 				errCh <- fmt.Errorf("nil response")
+				return
+			}
+			if resp.ErrorMessage != "" {
+				errCh <- fmt.Errorf("requestId: %s err: %s", resp.RequestId, resp.ErrorMessage)
 				return
 			}
 		}(i)

@@ -73,7 +73,7 @@ func (a *adminService) GetRuntimeStats(ctx context.Context, request *v1.GetRunti
 	return &v1.GetRuntimeStatsResponse{
 		PrefillQueueLen:  uint32(snapshot.PrefillQueueLength),
 		DecodeQueueLen:   uint32(snapshot.DecodeQueueLength),
-		InflightRequests: uint32(snapshot.InflightRequests),
+		InflightRequests: uint32(snapshot.ActiveRequests),
 		InflightBatches:  uint32(snapshot.InflightBatches),
 		BusyExecutors:    uint32(snapshot.BusyExecutors),
 		IdleExecutors:    uint32(snapshot.IdleExecutors),

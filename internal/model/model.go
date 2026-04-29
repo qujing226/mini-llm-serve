@@ -89,7 +89,7 @@ type Event struct {
 type RuntimeStats struct {
 	PrefillQueueLength uint64
 	DecodeQueueLength  uint64
-	InflightRequests   uint64
+	ActiveRequests     uint64
 	InflightBatches    uint64
 	BusyExecutors      uint64
 	IdleExecutors      uint64

@@ -1,4 +1,4 @@
-package worker
+package executor
 
 import (
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"

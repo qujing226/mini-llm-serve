@@ -5,13 +5,14 @@ import (
 	"time"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
 func TestOnEventIgnoresStaleEventAfterCancel(t *testing.T) {
-	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar())
+	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar(), metrics.NewMetrics())
 	req := &model.Request{
 		RequestId:    "req-stale",
 		Model:        "mock",
@@ -38,7 +39,7 @@ func TestOnEventIgnoresStaleEventAfterCancel(t *testing.T) {
 }
 
 func TestCanScheduleRejectsCanceledRequest(t *testing.T) {
-	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar())
+	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar(), metrics.NewMetrics())
 	req := &model.Request{
 		RequestId:    "req-canceled",
 		Model:        "mock",
@@ -55,7 +56,7 @@ func TestCanScheduleRejectsCanceledRequest(t *testing.T) {
 }
 
 func TestCanScheduleRejectsTimedOutRequest(t *testing.T) {
-	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar())
+	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar(), metrics.NewMetrics())
 	req := &model.Request{
 		RequestId:    "req-timeout",
 		Model:        "mock",
@@ -82,4 +83,26 @@ func TestCanScheduleRejectsTimedOutRequest(t *testing.T) {
 
 	_, ok = <-ch
 	require.False(t, ok)
+}
+
+func TestCreateDuplicateDoesNotIncreaseActiveRequests(t *testing.T) {
+	m := metrics.NewMetrics()
+	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar(), m)
+	req := &model.Request{
+		RequestId:    "req-duplicate",
+		Model:        "mock",
+		Prompt:       "hello",
+		MaxTokens:    8,
+		PromptTokens: 2,
+	}
+
+	_, err := manager.Create(req)
+	require.NoError(t, err)
+
+	_, err = manager.Create(req)
+	require.Error(t, err)
+	require.Equal(t, uint64(1), m.Snapshot().ActiveRequests)
+
+	manager.Finish(req.RequestId)
+	require.Equal(t, uint64(0), m.Snapshot().ActiveRequests)
 }

@@ -32,7 +32,7 @@ llm_execution_seconds_count{executor="mock-python"} 101
 llm_queue_wait_seconds_sum 9.996
 llm_queue_wait_seconds_count 101
 llm_queue_rejected_total 0
-llm_inflight_requests 0
+llm_active_requests 0
 llm_inflight_batches 0
 llm_requests_total{executor="mock-python",status="ok"} 101
 `
@@ -43,7 +43,7 @@ llm_requests_total{executor="mock-python",status="ok"} 101
 	require.InDelta(t, 0.09897, metrics.AvgQueueWaitSeconds, 0.001)
 	require.InDelta(t, 0.138, metrics.AvgExecutionSeconds, 0.001)
 	require.Equal(t, 101.0, metrics.RequestCountObserved)
-	require.Equal(t, 0.0, metrics.InflightRequestsFinal)
+	require.Equal(t, 0.0, metrics.ActiveRequestsFinal)
 	require.Equal(t, 0.0, metrics.InflightBatchesFinal)
 }
 

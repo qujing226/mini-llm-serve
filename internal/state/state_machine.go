@@ -2,10 +2,12 @@ package state
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
+	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"github.com/qujing226/mini-llm-serve/internal/utils"
 	"go.uber.org/zap"
@@ -25,17 +27,22 @@ type RequestLifecycleStateManager interface {
 }
 
 type requestLifecycleStateManager struct {
-	l           *zap.SugaredLogger
+	l *zap.SugaredLogger
+
 	requests    map[string]*model.Request
 	subscribeCh map[string]chan *model.Event
 	mu          sync.RWMutex
+
+	activeRequests atomic.Int64
+	metrics        metrics.Metrics
 }
 
-func NewRequestLifecycleStateManager(l *zap.SugaredLogger) RequestLifecycleStateManager {
+func NewRequestLifecycleStateManager(l *zap.SugaredLogger, metrics metrics.Metrics) RequestLifecycleStateManager {
 	r := &requestLifecycleStateManager{
 		l:           l,
 		requests:    make(map[string]*model.Request),
 		subscribeCh: make(map[string]chan *model.Event),
+		metrics:     metrics,
 	}
 	return r
 }
@@ -50,6 +57,9 @@ func (r *requestLifecycleStateManager) Create(req *model.Request) (*model.WorkIt
 	req.Phase = model.RequestPhasePrefillReady
 
 	r.subscribeCh[req.RequestId] = make(chan *model.Event, 5)
+
+	// metrics: add active requests
+	r.increaseActiveRequest()
 
 	now := time.Now()
 	workItem := &model.WorkItem{
@@ -97,6 +107,7 @@ func (r *requestLifecycleStateManager) CanSchedule(work *model.WorkItem) bool {
 	if !req.Deadline.IsZero() && time.Now().After(req.Deadline) {
 		req.Phase = model.RequestPhaseTimeout
 		delete(r.requests, work.RequestId)
+		r.reduceActiveRequest()
 		subCh, exists := r.subscribeCh[work.RequestId]
 		delete(r.subscribeCh, work.RequestId)
 		r.mu.Unlock()
@@ -227,11 +238,13 @@ func (r *requestLifecycleStateManager) Cancel(requestId string) {
 	if req, exists := r.requests[requestId]; exists {
 		req.Phase = model.RequestPhaseCanceled
 		delete(r.requests, requestId)
+		r.reduceActiveRequest()
 	}
 	if subCh, exists := r.subscribeCh[requestId]; exists {
 		delete(r.subscribeCh, requestId)
 		close(subCh)
 	}
+
 }
 
 func (r *requestLifecycleStateManager) Fail(requestId string, err error) {
@@ -239,6 +252,7 @@ func (r *requestLifecycleStateManager) Fail(requestId string, err error) {
 	if req, exists := r.requests[requestId]; exists {
 		req.Phase = model.RequestPhaseFailed
 		delete(r.requests, requestId)
+		r.reduceActiveRequest()
 	}
 	subCh, exists := r.subscribeCh[requestId]
 	delete(r.subscribeCh, requestId)
@@ -263,9 +277,18 @@ func (r *requestLifecycleStateManager) Finish(requestId string) {
 	if req, exists := r.requests[requestId]; exists {
 		req.Phase = model.RequestPhaseFinished
 		delete(r.requests, requestId)
+		r.reduceActiveRequest()
 	}
 	if subCh, exists := r.subscribeCh[requestId]; exists {
 		delete(r.subscribeCh, requestId)
 		close(subCh)
 	}
+}
+
+func (r *requestLifecycleStateManager) increaseActiveRequest() {
+	r.metrics.SetActiveRequests(int(r.activeRequests.Add(1)))
+
+}
+func (r *requestLifecycleStateManager) reduceActiveRequest() {
+	r.metrics.SetActiveRequests(int(r.activeRequests.Add(-1)))
 }

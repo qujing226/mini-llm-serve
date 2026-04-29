@@ -18,7 +18,7 @@ type Metrics interface {
 	IncBatches(executorID string)
 	SetPrefillQueueLength(n int)
 	SetDecodeQueueLength(n int)
-	SetInflightRequests(n int)
+	SetActiveRequests(n int)
 	SetInflightBatches(n int)
 	IncQueueRejected()
 	IncExecutorErrors(executorID string)
@@ -37,7 +37,7 @@ type metrics struct {
 	batchesTotal           *prometheus.CounterVec
 	prefillQueueLength     prometheus.Gauge
 	decodeQueueLength      prometheus.Gauge
-	inflightRequests       prometheus.Gauge
+	activeRequests         prometheus.Gauge
 	inflightBatches        prometheus.Gauge
 	queueRejectedTotal     prometheus.Counter
 	executorErrorsTotal    *prometheus.CounterVec
@@ -84,9 +84,9 @@ func NewMetrics() Metrics {
 			Name: "llm_decode_queue_length",
 			Help: "Number of queued decode works",
 		}),
-		inflightRequests: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "llm_inflight_requests",
-			Help: "Number of inflight requests",
+		activeRequests: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "llm_active_requests",
+			Help: "Number of active requests",
 		}),
 		inflightBatches: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "llm_inflight_batches",
@@ -102,7 +102,7 @@ func NewMetrics() Metrics {
 		}, []string{"executor"}),
 		m: &model.RuntimeStats{
 			PrefillQueueLength: 0,
-			InflightRequests:   0,
+			ActiveRequests:     0,
 			InflightBatches:    0,
 			BusyExecutors:      0,
 			IdleExecutors:      0,
@@ -118,7 +118,7 @@ func NewMetrics() Metrics {
 		m.batchesTotal,
 		m.prefillQueueLength,
 		m.decodeQueueLength,
-		m.inflightRequests,
+		m.activeRequests,
 		m.inflightBatches,
 		m.queueRejectedTotal,
 		m.executorErrorsTotal,
@@ -178,10 +178,10 @@ func (m *metrics) SetDecodeQueueLength(n int) {
 	m.mu.Unlock()
 }
 
-func (m *metrics) SetInflightRequests(n int) {
-	m.inflightRequests.Set(float64(n))
+func (m *metrics) SetActiveRequests(n int) {
+	m.activeRequests.Set(float64(n))
 	m.mu.Lock()
-	m.m.InflightRequests = uint64(n)
+	m.m.ActiveRequests = uint64(n)
 	m.mu.Unlock()
 }
 

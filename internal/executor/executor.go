@@ -1,4 +1,4 @@
-package worker
+package executor
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 
 type Executor interface {
 	Execute(ctx context.Context, batch *model.Batch) ([]*model.Event, error)
-	ExecuteToBatch(batch *model.Batch, resp *v1.ExecuteBatchResponse) ([]*model.Event, error)
 }
 
 func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executor, error) {
@@ -82,47 +81,7 @@ func (m *mockExecutor) Execute(ctx context.Context, batch *model.Batch) ([]*mode
 	if err != nil {
 		return nil, err
 	}
-	result, err := m.ExecuteToBatch(batch, resp)
-	if err != nil {
-		return nil, err
-	}
 
-	return result, nil
-}
-
-func (m *mockExecutor) ExecuteOne() string {
-	//beginExecutionTime := time.Now()
-	//select {
-	//case <-ctx.Done():
-	//	return nil, ctx.Err()
-	//case <-time.After(138 * time.Millisecond):
-	//}
-	//endExecutionTime := time.Now()
-	//r := &model.TaskResult{
-	//	TaskId:        task.TaskId,
-	//	RequestId:     task.RequestId,
-	//	ExecutorId:    m.GetId(),
-	//	DeltaText:        "to stimulate output, I spent all of my tokens",
-	//	FinishReason:  0,
-	//	ExecutionTime: endExecutionTime.Sub(beginExecutionTime),
-	//	Usage: model.Usage{
-	//		InputTokens:  32,
-	//		OutputTokens: 123,
-	//		TotalTokens:  155,
-	//	},
-	//	Error:   nil,
-	//	BatchID: batchId,
-	//	Timing: model.Timing{
-	//		QueueMs:     uint32(batchCreateTime.Sub(task.EnqueuedAt).Milliseconds()),
-	//		BatchWaitMs: uint32(beginExecutionTime.Sub(batchCreateTime).Milliseconds()),
-	//		ExecutionMs: uint32(endExecutionTime.Sub(beginExecutionTime).Milliseconds()),
-	//		TotalMs:     uint32(endExecutionTime.Sub(task.EnqueuedAt).Milliseconds()),
-	//	},
-	//}
-	return "mock"
-}
-
-func (m *mockExecutor) ExecuteToBatch(batch *model.Batch, resp *v1.ExecuteBatchResponse) ([]*model.Event, error) {
 	works := make(map[string]*model.WorkItem, len(batch.Items))
 	for _, item := range batch.Items {
 		works[item.WorkId] = item
@@ -132,7 +91,7 @@ func (m *mockExecutor) ExecuteToBatch(batch *model.Batch, resp *v1.ExecuteBatchR
 	for _, workRes := range resp.GetResults() {
 		workItem, exists := works[workRes.GetWorkId()]
 		if !exists {
-			m.l.Errorf("work id %s not found", workRes.GetWorkId())
+			m.l.Errorf("executorManager id %s not found", workRes.GetWorkId())
 			continue
 		}
 
