@@ -1,0 +1,6 @@
+resources:
+  - k8s-namespace.yaml
+  - k8s-executor.yaml
+  - k8s-server-config.yaml
+  - k8s-server.yaml
+  - k8s-ingress.yaml
