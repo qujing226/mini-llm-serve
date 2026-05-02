@@ -31,15 +31,15 @@ type ScheduleConf struct {
 	LongPrefillTokenThreshold uint64 `koanf:"longPrefillTokenThreshold"`
 	MaxPartialPrefills        uint64 `koanf:"maxPartialPrefills"`
 	MaxLongPartialPrefills    uint64 `koanf:"maxLongPartialPrefills"`
+	MaxScheduleDelay          uint64 `koanf:"maxScheduleDelay"`
 }
 
 type QueueConf struct {
-	QueueLength    uint64 `koanf:"queueLength"`
-	QueueRoundTime uint64 `koanf:"queueRoundTime"`
+	QueueLength uint64 `koanf:"queueLength"`
 }
 
-func (s QueueConf) QueueRoundInterval() time.Duration {
-	return time.Duration(s.QueueRoundTime) * time.Millisecond
+func (s ScheduleConf) ScheduleDelay() time.Duration {
+	return time.Duration(s.MaxScheduleDelay) * time.Millisecond
 }
 
 type ExecutorConf struct {

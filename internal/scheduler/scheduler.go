@@ -28,7 +28,8 @@ type scheduler struct {
 	maxPartialPrefills     uint64
 	maxLongPartialPrefills uint64
 	longPrefillThreshold   uint64
-	scheduleRound          time.Duration
+	scheduleRoundDelay     time.Duration
+	highPressureSeqs       uint64
 
 	prefillQueueSmall PrefillQueue
 	prefillQueueLarge PrefillQueue
@@ -50,7 +51,8 @@ func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, prefillQS PrefillQueue, 
 		maxPartialPrefills:     cfg.Server.ScheduleConf.MaxPartialPrefills,
 		maxLongPartialPrefills: cfg.Server.ScheduleConf.MaxLongPartialPrefills,
 		longPrefillThreshold:   cfg.Server.ScheduleConf.LongPrefillTokenThreshold,
-		scheduleRound:          cfg.Server.ScheduleConf.QueueConf.QueueRoundInterval(),
+		scheduleRoundDelay:     cfg.Server.ScheduleConf.ScheduleDelay(),
+		highPressureSeqs:       cfg.Server.ScheduleConf.MaxBatchSeq * 4 / 5,
 
 		prefillQueueSmall: prefillQS,
 		prefillQueueLarge: prefillQL,
@@ -100,12 +102,16 @@ func (s *scheduler) Enqueue(input *model.WorkItem) error {
 func (s *scheduler) Batch(ctx context.Context) {
 	go s.consumeEvents(ctx)
 
+	ticker := time.NewTicker(s.scheduleRoundDelay)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-s.patchExecuteChan:
-			//time.Sleep(s.scheduleRound)
+			ticker.Reset(s.scheduleRoundDelay)
+			s.patchExecute(ctx)
+		case <-ticker.C:
 			s.patchExecute(ctx)
 		}
 	}
@@ -227,12 +233,27 @@ func (s *scheduler) pickBatch() ([]*model.WorkItem, int) {
 }
 
 func (s *scheduler) trySchedule() {
-	if s.decodeQueue.Length() != 0 || s.prefillQueueSmall.Length() != 0 || s.prefillQueueLarge.Length() != 0 {
-		select {
-		case s.patchExecuteChan <- struct{}{}:
-		default:
-		}
+	if s.shouldDispatchNow() {
+		s.signalSchedule()
 	}
+	s.updateQueueMetrics()
+}
+
+func (s *scheduler) shouldDispatchNow() bool {
+	if s.prefillQueueLarge.Length() > 10 || s.prefillQueueSmall.Length() > 30 {
+		return true
+	}
+	return s.decodeQueue.Length() >= s.highPressureSeqs
+}
+
+func (s *scheduler) signalSchedule() {
+	select {
+	case s.patchExecuteChan <- struct{}{}:
+	default:
+	}
+}
+
+func (s *scheduler) updateQueueMetrics() {
 	s.metrics.SetPrefillQueueLength(int(s.prefillQueueSmall.Length() + s.prefillQueueLarge.Length()))
 	s.metrics.SetDecodeQueueLength(int(s.decodeQueue.Length()))
 }

@@ -8,9 +8,9 @@ maxBatchTokens = 1024
 longPrefillTokenThreshold = 512
 maxPartialPrefills = 2
 maxLongPartialPrefills = 1
+maxScheduleDelay = 30 # ms
 
 [server.scheduleConf.queueConf]
-queueRoundTime = 30 # ms
 queueLength = 100
 
 [[executors]]

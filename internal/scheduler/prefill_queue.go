@@ -2,7 +2,6 @@ package scheduler
 
 import (
 	"sync"
-	"time"
 
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
@@ -23,7 +22,6 @@ type prefillQueue struct {
 	mu             sync.Mutex
 	works          []*model.WorkItem
 	size           uint64
-	round          time.Duration
 }
 
 func NewPrefillQueue(cfg *conf.Conf, requestManager state.RequestLifecycleStateManager) PrefillQueue {
@@ -35,7 +33,6 @@ func NewPrefillQueue(cfg *conf.Conf, requestManager state.RequestLifecycleStateM
 		size:           length,
 		requestManager: requestManager,
 		works:          make([]*model.WorkItem, 0, length),
-		round:          cfg.Server.ScheduleConf.QueueConf.QueueRoundInterval(),
 	}
 	return q
 }

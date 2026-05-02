@@ -2,7 +2,6 @@ package scheduler
 
 import (
 	"sync"
-	"time"
 
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
@@ -21,7 +20,6 @@ type decodeQueue struct {
 	mu             sync.Mutex
 	works          []*workItemEntry
 	size           uint64
-	round          time.Duration
 }
 
 type workItemEntry struct {
@@ -39,7 +37,6 @@ func NewDecodeQueue(cfg *conf.Conf, requestManager state.RequestLifecycleStateMa
 		size:           length,
 		requestManager: requestManager,
 		works:          make([]*workItemEntry, 0, length),
-		round:          cfg.Server.ScheduleConf.QueueConf.QueueRoundInterval(),
 	}
 	return q
 }
