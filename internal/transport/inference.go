@@ -147,6 +147,9 @@ func (i *inferenceService) Generate(ctx context.Context, request *v1.GenerateReq
 		status           = "ok"
 		executorId       = "unknown"
 		requestStartTime = time.Now()
+
+		firstTokenAt time.Time
+		lastTokenAt  time.Time
 	)
 	defer func() {
 		requestEndTime := time.Now()
@@ -174,6 +177,16 @@ func (i *inferenceService) Generate(ctx context.Context, request *v1.GenerateReq
 				return nil, appErrors.ToConnectError(appErrors.New(appErrors.CodeInternal, "stream closed before completion"))
 			}
 			out.DeltaText += msg.DeltaText
+			if msg.DeltaText != "" {
+				now := time.Now()
+				if firstTokenAt.IsZero() {
+					firstTokenAt = now
+					i.metrics.ObserveTTFT(firstTokenAt.Sub(requestStartTime).Seconds())
+				} else if !lastTokenAt.IsZero() {
+					i.metrics.ObserveTBT(now.Sub(lastTokenAt).Seconds())
+				}
+				lastTokenAt = now
+			}
 			if msg.Done {
 				out.Usage = msg.Usage
 				out.BatchID = msg.BatchID
@@ -184,6 +197,7 @@ func (i *inferenceService) Generate(ctx context.Context, request *v1.GenerateReq
 				out.FinishReason = msg.FinishReason
 				out.Index = msg.Index
 				out.Err = msg.Err
+				executorId = msg.ExecutorId
 				goto ret
 			}
 
@@ -206,6 +220,9 @@ func (i *inferenceService) GenerateStream(ctx context.Context, request *v1.Gener
 		status           = "ok"
 		executorId       = "unknown"
 		requestStartTime = time.Now()
+
+		firstTokenAt time.Time
+		lastTokenAt  time.Time
 	)
 	defer func() {
 		requestEndTime := time.Now()
@@ -229,6 +246,19 @@ func (i *inferenceService) GenerateStream(ctx context.Context, request *v1.Gener
 			if !ok {
 				status = string(appErrors.CodeInternal)
 				return appErrors.ToConnectError(appErrors.New(appErrors.CodeInternal, "stream closed before completion"))
+			}
+			if msg.ExecutorId != "" {
+				executorId = msg.ExecutorId
+			}
+			if msg.DeltaText != "" {
+				now := time.Now()
+				if firstTokenAt.IsZero() {
+					firstTokenAt = now
+					i.metrics.ObserveTTFT(firstTokenAt.Sub(requestStartTime).Seconds())
+				} else if !lastTokenAt.IsZero() {
+					i.metrics.ObserveTBT(now.Sub(lastTokenAt).Seconds())
+				}
+				lastTokenAt = now
 			}
 			resp, transferErr := model.ModelToProtoMsgStream(msg)
 			if transferErr != nil {

@@ -12,6 +12,8 @@ import (
 type Metrics interface {
 	IncRequest(status string, executorID string)
 	ObserveRequestDuration(s float64)
+	ObserveTTFT(s float64)
+	ObserveTBT(s float64)
 	ObserveQueueWait(s float64)
 	ObserveExecution(s float64, executorID string)
 	ObserveBatchSize(size int)
@@ -31,6 +33,8 @@ type metrics struct {
 
 	requestsTotal          *prometheus.CounterVec
 	requestDurationSeconds prometheus.Histogram
+	ttftSeconds            prometheus.Histogram
+	tbtSeconds             prometheus.Histogram
 	queueWaitSeconds       prometheus.Histogram
 	executionSeconds       *prometheus.HistogramVec
 	batchSize              *prometheus.HistogramVec
@@ -56,6 +60,16 @@ func NewMetrics() Metrics {
 			Name:    "llm_request_duration_seconds",
 			Help:    "Request duration in seconds",
 			Buckets: []float64{0.05, 0.1, 0.2, 0.5, 1, 1.5, 2, 3, 5, 10},
+		}),
+		ttftSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Name:    "llm_ttft_seconds",
+			Help:    "Time from request arrival to first generated token",
+			Buckets: []float64{0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5},
+		}),
+		tbtSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Name:    "llm_tbt_seconds",
+			Help:    "Time between generated token chunks",
+			Buckets: []float64{0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1},
 		}),
 		queueWaitSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
 			Name:    "llm_queue_wait_seconds",
@@ -112,6 +126,8 @@ func NewMetrics() Metrics {
 	m.re.MustRegister(
 		m.requestsTotal,
 		m.requestDurationSeconds,
+		m.ttftSeconds,
+		m.tbtSeconds,
 		m.queueWaitSeconds,
 		m.executionSeconds,
 		m.batchSize,
@@ -143,6 +159,14 @@ func (m *metrics) IncRequest(status string, executorID string) {
 
 func (m *metrics) ObserveRequestDuration(s float64) {
 	m.requestDurationSeconds.Observe(s)
+}
+
+func (m *metrics) ObserveTTFT(s float64) {
+	m.ttftSeconds.Observe(s)
+}
+
+func (m *metrics) ObserveTBT(s float64) {
+	m.tbtSeconds.Observe(s)
 }
 
 func (m *metrics) ObserveQueueWait(s float64) {
