@@ -83,9 +83,7 @@ class PagedKVCache:
         # view() merges block and offset; -1 lets PyTorch infer B*S. e.g.
         # num_blocks = 3 block_size = 4 num_kv_heads = 1 head_dim = 2
         # [1, 3, 4, 2] -> [1, 12, 2]
-        flat_key = self.key_cache[layer_idx].view(
-            self.num_kv_heads, -1, self.head_dim
-        )
+        flat_key = self.key_cache[layer_idx].view(self.num_kv_heads, -1, self.head_dim)
         flat_value = self.value_cache[layer_idx].view(
             self.num_kv_heads, -1, self.head_dim
         )
@@ -160,9 +158,7 @@ class PagedKVCache:
         if not bool(flat_valid.index_select(0, slots).all().item()):
             raise ValueError("requested KV slot has not been written")
 
-        flat_key = self.key_cache[layer_idx].view(
-            self.num_kv_heads, -1, self.head_dim
-        )
+        flat_key = self.key_cache[layer_idx].view(self.num_kv_heads, -1, self.head_dim)
         flat_value = self.value_cache[layer_idx].view(
             self.num_kv_heads, -1, self.head_dim
         )
@@ -189,8 +185,14 @@ class PagedKVCache:
 
     @property
     def cache_bytes(self) -> int:
-        elements = self.key_cache.numel() + self.value_cache.numel()
-        return elements * self.key_cache.element_size()
+        return sum(
+            tensor.numel() * tensor.element_size()
+            for tensor in (
+                self.key_cache,
+                self.value_cache,
+                self.valid_slots,
+            )
+        )
 
     def _validate_layer(self, layer_idx: int) -> None:
         if not 0 <= layer_idx < self.num_layers:
@@ -202,3 +204,20 @@ class PagedKVCache:
             raise ValueError("slot mapping contains invalid slot")
         if slots.unique().numel() != slots.numel():
             raise ValueError("slot mapping contains duplicate slots")
+
+
+def cache_block_bytes(
+    num_layers: int,
+    block_size: int,
+    num_kv_heads: int,
+    head_dim: int,
+    dtype: torch.dtype,
+) -> int:
+    dimensions = (num_layers, block_size, num_kv_heads, head_dim)
+    if any(value <= 0 for value in dimensions):
+        raise ValueError("KV cache dimensions must be positive")
+
+    bytes_total = 2 * num_layers * block_size * num_kv_heads * head_dim * dtype.itemsize
+    valid_slots_bytes = num_layers * block_size * torch.bool.itemsize
+
+    return bytes_total + valid_slots_bytes

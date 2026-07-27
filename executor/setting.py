@@ -3,13 +3,15 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+
 @dataclass(frozen=True)
 class RunnerConfig:
     executor_id: str
     model_id: str
     model_path: str
     model_type: str
-    dtype: str = "float32"
+    dtype: str = "auto"
+
 
 @dataclass(frozen=True)
 class RuntimeConfig:
@@ -17,6 +19,13 @@ class RuntimeConfig:
     tensor_parallel_size: int
     gpu_memory_utilization: float
     kv_cache_memory_bytes: int
+
+    def __post_init__(self):
+        if self.kv_cache_memory_bytes < 0:
+            raise ValueError("kv_cache_memory_bytes must not be negative")
+        if self.device == "cpu" and self.kv_cache_memory_bytes == 0:
+            raise ValueError("CPU runtime requires a positive KV cache budget")
+
 
 @dataclass(frozen=True)
 class ExecutorConfig:
