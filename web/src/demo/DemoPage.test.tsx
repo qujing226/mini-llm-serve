@@ -136,6 +136,28 @@ describe("DemoPage", () => {
     expect(await screen.findByText("Qwen/Qwen3-0.6B")).toBeInTheDocument();
   });
 
+  it("treats cached KV blocks as overlapping capacity", async () => {
+    render(
+      <DemoPage
+        focusOnMount={false}
+        client={{ generateStream: vi.fn() } as GenerationClient}
+        metrics={{
+          scrape: vi.fn().mockResolvedValue(snapshot({
+            kvActive: 8,
+            kvFree: 32,
+            kvCached: 16,
+          })),
+        }}
+        runtimes={runtimeClient()}
+      />,
+    );
+
+    expect(
+      await screen.findByText("80% KV headroom remains available."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Active / Free · Cached overlaps")).toBeInTheDocument();
+  });
+
   it("streams markdown through one send action and marks the topology active", async () => {
     const user = userEvent.setup();
     let release: () => void = () => {};

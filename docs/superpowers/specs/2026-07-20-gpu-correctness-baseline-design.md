@@ -27,8 +27,6 @@ CUDA 模式默认由用户配置 `gpu_memory_utilization`，Runner 在模型加�
 - CPU 和 CUDA 共用 BatchBuilder、DynamicCacheAdapter、逐 item forward、采样和结果构造逻辑。
 - 设备差异限制在设备解析、dtype 解析、内存预算和计时辅助代码中。
 
-未采用两个独立 Runner，因为它会复制并逐渐分叉关键正确性逻辑。未建立完整 DeviceBackend 框架，因为阶段 5 的 Native Runner 不一定复用 Transformers 执行抽象，当前引入会超出 4A 范围。
-
 ## 组件边界
 
 ### Device-aware Transformers Runner
@@ -51,8 +49,6 @@ CUDA 模式默认由用户配置 `gpu_memory_utilization`，Runner 在模型加�
 2. 根据配置和设备解析 torch dtype；
 3. 读取 CPU/CUDA 内存并计算可分配的完整 KV blocks；
 4. 为 CPU 和 CUDA 提供具有同一调用方式的 execution timer。
-
-辅助模块不负责模型执行、batch 构造或 KV 生命周期，避免演变成阶段 5 之前的通用后端框架。
 
 ### PagedKVCache
 

@@ -84,8 +84,8 @@ function inflightInsight(metrics: MetricsSnapshot | null) {
 
 function kvInsight(metrics: MetricsSnapshot | null) {
   if (!metrics) return "Waiting for a runtime sample.";
-  const { kvActive, kvFree, kvCached } = metrics.runtime;
-  const total = kvActive + kvFree + kvCached;
+  const { kvActive, kvFree } = metrics.runtime;
+  const total = kvActive + kvFree;
   if (total === 0) return "KV capacity is not reported.";
   return `${Math.round((kvFree / total) * 100)}% KV headroom remains available.`;
 }
@@ -343,8 +343,8 @@ export function DemoPage({
               </article>
               <article>
                 <span>KV blocks</span>
-                <strong>{liveMetrics ? `${liveMetrics.runtime.kvActive} A / ${liveMetrics.runtime.kvFree} F / ${liveMetrics.runtime.kvCached} C` : "—"}</strong>
-                <small>Active / Free / Cached</small>
+                <strong>{liveMetrics ? `${liveMetrics.runtime.kvActive} A / ${liveMetrics.runtime.kvFree} F · ${liveMetrics.runtime.kvCached} C` : "—"}</strong>
+                <small>Active / Free · Cached overlaps</small>
                 <p>{kvInsight(liveMetrics)}</p>
               </article>
             </div>
