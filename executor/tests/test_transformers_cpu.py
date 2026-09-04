@@ -1,16 +1,15 @@
 import unittest
 
 import torch
-from transformers import Qwen3Config, Qwen3ForCausalLM
-
 from adapter.dynamic_cache import DynamicCacheAdapter
 from kvtide.v1 import block_pb2, core_pb2, executor_pb2
-from runner.transformers_cpu import QwenTransformersRunner
+from runner.transformers import Runner
 from runtime.batch import BatchBuilder
 from runtime.kv_cache import PagedKVCache
+from transformers import Qwen3Config, Qwen3ForCausalLM
 
 
-def build_tiny_runner() -> QwenTransformersRunner:
+def build_tiny_runner() -> Runner:
     config = Qwen3Config(
         vocab_size=32,
         hidden_size=16,
@@ -22,11 +21,18 @@ def build_tiny_runner() -> QwenTransformersRunner:
         max_position_embeddings=32,
         eos_token_id=31,
     )
-    runner = object.__new__(QwenTransformersRunner)
+    runner = object.__new__(Runner)
+    from runner.device import create_execution_timer
+
+    runner.device = torch.device("cpu")
+    runner.timer = create_execution_timer(runner.device)
+
     runner.model = Qwen3ForCausalLM(config).eval()
     runner.block_size = 4
     runner.num_layers = config.num_hidden_layers
-    runner.num_kv_heads = config.num_key_value_heads
+    num_kv_heads = config.num_key_value_heads
+    assert num_kv_heads is not None
+    runner.num_kv_heads = num_kv_heads
     runner.head_dim = config.head_dim
     runner.batch_builder = BatchBuilder(runner.block_size)
     runner.kv_cache = PagedKVCache(
@@ -65,7 +71,7 @@ def execute_item(
     )
 
 
-class QwenTransformersRunnerTest(unittest.IsolatedAsyncioTestCase):
+class RunnerTest(unittest.IsolatedAsyncioTestCase):
     async def test_prefill_then_decode_reuses_and_extends_paged_kv_cache(self):
         torch.manual_seed(0)
         runner = build_tiny_runner()

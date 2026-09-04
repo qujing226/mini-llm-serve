@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+
 from kvtide.v1 import executor_pb2
 
 

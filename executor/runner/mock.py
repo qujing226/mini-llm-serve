@@ -4,8 +4,8 @@ import re
 from dataclasses import dataclass, field
 
 from kvtide.v1 import core_pb2, executor_pb2
-from runner.base import ModelRunner, RuntimeInfo
 
+from runner.base import ModelRunner, RuntimeInfo
 
 MOCK_RESPONSE_TEXT = """# Paged Attention
 
@@ -116,7 +116,9 @@ class MockRunner(ModelRunner):
 
         # Use the larger progress value to avoid generating duplicate words if
         # either the mock runtime state or control-plane state is behind.
-        word_index = max(self._decode_positions.get(item.request_id, 0), item.generated_tokens)
+        word_index = max(
+            self._decode_positions.get(item.request_id, 0), item.generated_tokens
+        )
 
         if word_index >= len(MOCK_RESPONSE_CHUNKS):
             self._clear_request(item.request_id)

@@ -1,10 +1,10 @@
 from .base import ModelRunner, RuntimeInfo
 from .mock import MockRunner
-from .transformers_cpu import QwenTransformersRunner
+from .transformers import Runner
 
 __all__ = [
-    "RuntimeInfo",
     "ModelRunner",
+    "RuntimeInfo",
+    "Runner",
     "MockRunner",
-    "QwenTransformersRunner",
 ]

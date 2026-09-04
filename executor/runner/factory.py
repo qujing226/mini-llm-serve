@@ -1,15 +1,14 @@
-from runner import ModelRunner, MockRunner, QwenTransformersRunner
 from setting import ExecutorConfig
+
+from runner import MockRunner, ModelRunner, Runner
 
 
 def create_runner(cfg: ExecutorConfig) -> ModelRunner:
     if cfg.runner.model_type == "mock":
         return MockRunner()
     if cfg.runner.model_type == "qwen3":
-        if cfg.runtime.device == "cpu":
-            return QwenTransformersRunner(cfg.runner, cfg.runtime.kv_cache_memory_bytes)
-        if cfg.runtime.device == "cuda":
-            raise ValueError("unsupported cuda runtime yet")
+        return Runner(cfg.runner, cfg.runtime)
+
     # if cfg.model_type == "cuda":
     #     return CUDAModelRunner(cfg)
     raise ValueError(f"unsupported runner model_type: {cfg.runner.model_type}")

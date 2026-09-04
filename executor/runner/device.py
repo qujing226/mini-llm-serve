@@ -94,7 +94,7 @@ def resolve_device(name: str) -> torch.device:
     return torch.device("cuda", index)
 
 
-def resolve_torch_dtype(name: str, device: torch.device) -> torch.dtype:
+def resolve_dtype(name: str, device: torch.device) -> torch.dtype:
     normalized = name.lower()
     if normalized == "auto":
         if device.type == "cpu":
@@ -121,6 +121,14 @@ def resolve_torch_dtype(name: str, device: torch.device) -> torch.dtype:
     ):
         raise ValueError(f"CUDA device does not support bfloat16: {device}")
     return dtype
+
+
+def resolve_runtime_config(
+    dtype_name: str, device_name: str
+) -> tuple[torch.dtype, torch.device]:
+    device = resolve_device(device_name)
+    dtype = resolve_dtype(dtype_name, device)
+    return (dtype, device)
 
 
 def memory_snapshot(device: torch.device) -> MemorySnapshot:
@@ -173,9 +181,7 @@ def plan_kv_cache(
             0,
             before_model.available_bytes - after_model.available_bytes,
         )
-        executor_limit = int(
-            after_model.total_bytes * gpu_memory_utilization
-        )
+        executor_limit = int(after_model.total_bytes * gpu_memory_utilization)
         budget = min(
             executor_limit - model_footprint,
             after_model.available_bytes,
